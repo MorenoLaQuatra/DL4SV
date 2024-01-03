@@ -62,6 +62,8 @@ const thebe_selector_input = "pre"
 const thebe_selector_output = ".output, .cell_output"
 </script>
     <script async="async" src="_static/sphinx-thebe.js"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = '2_cnns';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -170,7 +172,13 @@ const thebe_selector_output = ".output, .cell_output"
         </ul>
         <ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="1_dl_intro.html">Introduction to Deep Learning</a></li>
+
+
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Convolutional Neural Networks</a></li>
+
+
+
+
 <li class="toctree-l1"><a class="reference internal" href="3_transformers.html">Transformers</a></li>
 <li class="toctree-l1"><a class="reference internal" href="4_vision_applications.html">Computer Vision Applications</a></li>
 <li class="toctree-l1"><a class="reference internal" href="5_audio_speech_applications.html">Audio Processing Applications</a></li>
@@ -347,7 +355,9 @@ document.write(`
   </button>
 `);
 </script>
-
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
 </div></div>
       
     </div>
@@ -363,6 +373,63 @@ document.write(`
     <div id="print-main-content">
         <div id="jb-print-toc">
             
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Convolutional Neural Networks</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#properties-of-image-data">Properties of Image Data</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-neural-network-architecture">Convolutional Neural Network Architecture</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-components">Basic Components</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-layers">Convolutional Layers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pooling-layers">Pooling Layers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#stride-and-padding">Stride and Padding</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#receptive-field">Receptive Field</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-cnn-architectures">Common CNN Architectures</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lenet-5">LeNet-5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#alexnet">AlexNet</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#resnet">ResNet</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-neural-networks-for-audio-data">Convolutional Neural Networks for Audio Data</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adapting-cnns-for-sequential-data">Adapting CNNs for Sequential Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#d-convolutional-layers">1-D Convolutional Layers</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-layers-for-temporal-patterns">Convolutional Layers for Temporal Patterns</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pooling-strategies">Pooling Strategies</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activation-functions">Activation Functions</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spectrogram-representation">Spectrogram Representation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#short-time-fourier-transform">Short-Time Fourier Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mel-spectrogram">Mel-Spectrogram</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audio-cnn-architectures">Audio CNN Architectures</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#vggish">VGGish</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#wavenet-link">WaveNet link</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#yamnet-link">YAMNet link</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#implementing-a-cnn-with-pytorch">Implementing a CNN with PyTorch</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model">Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#training">Training</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#evaluation">Evaluation</a></li>
+</ul>
+</li>
+</ul>
+
+            </nav>
         </div>
     </div>
 </div>
@@ -374,6 +441,346 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="convolutional-neural-networks">
 <h1>Convolutional Neural Networks<a class="headerlink" href="#convolutional-neural-networks" title="Permalink to this heading">#</a></h1>
+<figure class="align-default" id="cover">
+<a class="reference internal image-reference" href="_images/cover_cnn.png"><img alt="cover" src="_images/cover_cnn.png" style="width: 50%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 5 </span><span class="caption-text">Image generated using <a class="reference external" href="https://huggingface.co/spaces/mrfakename/OpenDalleV1.1-GPU-Demo">OpenDALL-E</a></span><a class="headerlink" href="#cover" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this heading">#</a></h1>
+<p>Convolutional Neural Networks (CNNs) are a class of deep neural networks that are widely used in computer vision applications. CNNs are designed to process data that have a grid-like or lattice-like topology, such as images, speech signals, and text.</p>
+<p>The convolutional neural network architecture was first introduced in the 1980s by Yann LeCun and colleagues <span id="id1">[<a class="reference internal" href="references.html#id5" title="Yann LeCun, Bernhard Boser, John S Denker, Donnie Henderson, Richard E Howard, Wayne Hubbard, and Lawrence D Jackel. Backpropagation applied to handwritten zip code recognition. Neural computation, 1(4):541–551, 1989.">LBD+89</a>]</span>. The first CNN was designed to recognize handwritten digits as the one shown in Figure <a class="reference internal" href="#mnist"><span class="std std-ref">The MNIST dataset</span></a>
+. The network was trained on the MNIST dataset, a collection of 60000 handwritten digits.</p>
+<figure class="align-default" id="mnist">
+<a class="reference internal image-reference" href="_images/mnist.png"><img alt="mnist" src="_images/mnist.png" style="width: 60%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 6 </span><span class="caption-text">The MNIST dataset</span><a class="headerlink" href="#mnist" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<section id="properties-of-image-data">
+<h2>Properties of Image Data<a class="headerlink" href="#properties-of-image-data" title="Permalink to this heading">#</a></h2>
+<p>Images are a special type of data that are characterized by three properties:</p>
+<ul class="simple">
+<li><p><strong>High dimensionality</strong>: images are represented as a matrix of pixels, where each pixel is a value between 0 and 255. For example, a 224x224 RGB image is represented as a 224x224x3 matrix (<span class="math notranslate nohighlight">\(224 \times 224 \times 3 = 150528\)</span>).</p></li>
+<li><p><strong>Spatial correlation</strong>: neaby pixel in an image are correlated. For example, in a picture of a cat, the pixels that represent the cat’s fur are likely to be similar.</p></li>
+<li><p><strong>Invariance to geometric transformations</strong>: the content of an image is invariant to geometric transformations such as translation, rotation, and scaling. For example, a picture of a cat is still a picture of a cat if we rotate it by 90 degrees.</p></li>
+</ul>
+<p>Those properties are directly related to the fact that is really difficult to use a fully connected neural network to process images.</p>
+<ul class="simple">
+<li><p>The high dimensionality of images makes the training of a fully connected neural network infeasible. Even a shallow network receiving as input a 224x224 RGB image would have 150528 input units in the first layer. This number would increase exponentially with the number of layers (2 layers <span class="math notranslate nohighlight">\(150528^2\)</span>, 3 layers <span class="math notranslate nohighlight">\(150528^3\)</span>, etc.).</p></li>
+<li><p>The spatial correlation of images is not exploited by fully connected neural networks. In a fully connected neural network, each input unit is connected to each output unit. This means that the network would learn a different weight for each pixel in the image, regardless of its position. This is not desirable because the network would not be able to learn the spatial correlation between pixels.</p></li>
+<li><p>Similarly, a fully connected neural network would not be able to learn the invariance to geometric transformations. If we translate, rotate, or scale an image, the network sees a completely different input.</p></li>
+</ul>
+<p>Convolutional Neural Networks are designed to overcome these limitations.</p>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="convolutional-neural-network-architecture">
+<h1>Convolutional Neural Network Architecture<a class="headerlink" href="#convolutional-neural-network-architecture" title="Permalink to this heading">#</a></h1>
+<p>The architecture of a convolutional neural network is composed of three main components:</p>
+<ul class="simple">
+<li><p><strong>Convolutional layers</strong>: these layers are responsible for extracting features from the input data. A convolutional layer is composed of a set of filters that are applied to the input data to extract features. The output of a convolutional layer is a set of feature maps, one for each filter.</p></li>
+<li><p><strong>Pooling layers</strong>: these layers are responsible for reducing the dimensionality of the feature maps. A pooling layer is applied to each feature map independently. Average or max pooling are the most common pooling strategies.</p></li>
+<li><p><strong>Fully connected layers</strong>: these layers are responsible for rearranging the features extracted by the convolutional layers into a vector of probabilities.</p></li>
+</ul>
+<p>An example of a convolutional neural network architecture is shown in Figure <a class="reference internal" href="#cnn-architecture"><span class="std std-ref">Simple CNN architecture having all the basic components.
+Image source vitalflux.com</span></a>. The network is composed of five convolutional layers, five pooling layers, and tthree fully connected layers. The input of the network is a 224x224 RGB image. The output of the network is a vector of probabilities, one for each class in the dataset (i.e., 1000 in the case of <a class="reference external" href="http://www.image-net.org/">ImageNet</a>).</p>
+<figure class="align-default" id="cnn-architecture">
+<a class="reference internal image-reference" href="_images/example_cnn.png"><img alt="cnn_architecture" src="_images/example_cnn.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 7 </span><span class="caption-text">Simple CNN architecture having all the basic components.
+Image source <a class="reference external" href="https://vitalflux.com/different-types-of-cnn-architectures-explained-examples/">vitalflux.com</a></span><a class="headerlink" href="#cnn-architecture" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p>The convolution operation, together with the pooling operation, is the key component of a convolutional neural network. In the following sections, we will see how these operations work and how they can be used to extract features from images.</p>
+<section id="basic-components">
+<h2>Basic Components<a class="headerlink" href="#basic-components" title="Permalink to this heading">#</a></h2>
+<p>Convolutional neural networks, also named ConvNets or CNNs, are a class of deep neural networks that have been initially designed to process images. The operations involved in a CNN are inspired by the visual cortex of the human brain. In particular, the convolution operation is inspired by the receptive fields of neurons in the visual cortex.</p>
+<section id="convolutional-layers">
+<h3>Convolutional Layers<a class="headerlink" href="#convolutional-layers" title="Permalink to this heading">#</a></h3>
+<p>The main component of a CNN is the convolutional layer. In a convolutional layer, a set of filters is applied to the input data to extract <strong>high-level features</strong>.</p>
+<p>The convolution operation is defined by a set of parameters:</p>
+<ul class="simple">
+<li><p>The <strong>filter size</strong> is the size of the filter. The filter size is usually an odd number (e.g., 3x3, 5x5, 7x7).</p></li>
+<li><p><strong>Stride</strong> is the number of pixels by which the filter is shifted at each step.</p></li>
+<li><p><strong>Padding</strong> is the number of pixels added to each side of the input image. Padding is usually used to preserve the spatial dimension of the input image.</p></li>
+</ul>
+<p>The convolution operation is applied to each channel of the input image independently. For the moment, let’s consider a single channel image. The convolution operation is defined as follows:</p>
+<ol class="arabic simple">
+<li><p>The filter is placed on the top-left corner of the input image.</p></li>
+<li><p>The element-wise multiplication between the filter and the input image is computed.</p></li>
+<li><p>The result of the multiplication is summed up to obtain a single value.</p></li>
+<li><p>The filter is shifted by the stride value to the right. If the filter reaches the right side of the image, it is shifted to the left side of the next row.</p></li>
+<li><p>Steps 2-4 are repeated until the filter reaches the bottom-right corner of the image.</p></li>
+<li><p>The result of the convolution operation is a feature map, a matrix of values that represents the output of the convolution operation.</p></li>
+</ol>
+<figure class="align-default" id="convolution">
+<a class="reference internal image-reference" href="_images/conv_step0.png"><img alt="convolution" src="_images/conv_step0.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 8 </span><span class="caption-text">Initial settings of the convolution operation.
+On the left, the input image. On the middle, the filter. On the right, the output feature map (empty at the beginning). In the example, stride is 1 and padding is 0 (simpler case).</span><a class="headerlink" href="#convolution" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><a class="reference internal" href="#convolution"><span class="std std-numref">Fig. 8</span></a> shows the initial settings of the convolution operation. The feature map is empty at the beginning.</p>
+<figure class="align-default" id="conv-step-1">
+<a class="reference internal image-reference" href="_images/conv_step1.png"><img alt="convolution" src="_images/conv_step1.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 9 </span><span class="caption-text">Step 1 of the convolution operation.</span><a class="headerlink" href="#conv-step-1" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><strong>Step 1</strong>: the filter is placed on the top-left corner of the input image. The element-wise multiplication between the filter and the input image is computed. The result of the multiplication is summed up to obtain a single value. In this example, the result is 6, that is the first value of the feature map as shown in <a class="reference internal" href="#conv-step-1"><span class="std std-numref">Fig. 9</span></a>.</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\begin{align}
+\begin{split}
+&amp; + 1 \times 1 + 0 \times 2 \\
+&amp; + 1 \times 5 + 0 \times 4 \\
+&amp; = 6
+\end{split}
+\end{align}
+\end{split}\]</div>
+<figure class="align-default" id="conv-step-2">
+<a class="reference internal image-reference" href="_images/conv_step2.png"><img alt="convolution" src="_images/conv_step2.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 10 </span><span class="caption-text">Step 2 of the convolution operation.</span><a class="headerlink" href="#conv-step-2" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><strong>Step 2</strong>: the filter is shifted by the stride value to the right. If the filter reaches the right side of the image, it is shifted to the left side of the next row. In this example, the filter is shifted by 1 pixel to the right. The result of the convolution operation is 8, that is the second value of the feature map as shown in <a class="reference internal" href="#conv-step-2"><span class="std std-numref">Fig. 10</span></a>.</p>
+<figure class="align-default" id="conv-step-n">
+<a class="reference internal image-reference" href="_images/conv_stepn.png"><img alt="convolution" src="_images/conv_stepn.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 11 </span><span class="caption-text">Last step of the convolution operation.</span><a class="headerlink" href="#conv-step-n" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><strong>Step n</strong>: after <span class="math notranslate nohighlight">\(n\)</span> steps, the filter reaches the bottom-right corner of the image. The result of the convolution operation is a feature map, a matrix of values that represents the output of the convolution operation. In this example, the feature map is a 2x2 matrix as shown in <a class="reference internal" href="#conv-step-n"><span class="std std-numref">Fig. 11</span></a>.</p>
+<p>The convolution operation is applied to each channel of the input image independently. The result is a set of feature maps, one for each channel of the input image. The number of feature maps is equal to the number of filters in the convolutional layer.</p>
+<p><strong>Note</strong>: in the previous example, we considered a <em>fixed</em> filter. In practice, the filters are <em>learned</em> during the training process. The weights of the filters are the parameters of the convolutional layer that the network learns during the training process.</p>
+</section>
+<section id="pooling-layers">
+<h3>Pooling Layers<a class="headerlink" href="#pooling-layers" title="Permalink to this heading">#</a></h3>
+<p>The pooling operation is often used to reduce the dimensionality of the feature maps. The pooling operation is defined by a set of parameters:</p>
+<ul class="simple">
+<li><p>The <strong>pooling size</strong> is the size of the pooling filter. As for convolutional kernels, the pooling size is usually an odd number (e.g., 3x3, 5x5, 7x7).</p></li>
+<li><p><strong>Stride</strong> is the number of pixels by which the pooling filter is shifted at each step.</p></li>
+<li><p><strong>Padding</strong> is the number of pixels added to each side of the input image. Padding is usually used to preserve the spatial dimension of the input image.</p></li>
+<li><p><strong>Pooling strategy</strong> is the function used to aggregate the values in the pooling filter. The most common pooling strategies are average pooling and max pooling.</p></li>
+</ul>
+<p>The pooling layer operates in a similar way to the convolutional layer. The pooling filter is placed on the top-left corner of the input image. The pooling operation is applied to each channel of the input image independently. The result of the pooling operation is a feature map, a matrix of values that represents the output of the pooling operation.</p>
+<figure class="align-default" id="avg-pooling">
+<a class="reference internal image-reference" href="_images/avg_pooling.png"><img alt="avg_pooling" src="_images/avg_pooling.png" style="width: 60%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 12 </span><span class="caption-text">Average pooling on a 4x4 matrix with pooling size 2x2 and stride 2. Padding is 0.</span><a class="headerlink" href="#avg-pooling" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><a class="reference internal" href="#avg-pooling"><span class="std std-numref">Fig. 12</span></a> shows an example of average pooling. The colors help to visualize the pooling operation involving the following steps:</p>
+<ul class="simple">
+<li><p>The pooling filter is placed on the top-left corner of the input image. The average of the values in the pooling filter is computed. In this example, the average is <span class="math notranslate nohighlight">\((1+2+5+6)/4 = 3.5\)</span>.</p></li>
+<li><p>The pooling filter is shifted by the stride value (2) to the right. Again, the average of the values in the pooling filter is computed. In this example, the average is <span class="math notranslate nohighlight">\((3+4+7+8)/4 = 5.5\)</span>.</p></li>
+<li><p>Since we reached the right side of the image, the pooling filter is shifted to the left side of the next row. The average of the values in the pooling filter is computed. In this example, the average is <span class="math notranslate nohighlight">\((9+10+13+14)/4 = 11.5\)</span>.</p></li>
+<li><p>… the process continues until the pooling filter reaches the bottom-right corner of the image.</p></li>
+</ul>
+</section>
+<section id="stride-and-padding">
+<h3>Stride and Padding<a class="headerlink" href="#stride-and-padding" title="Permalink to this heading">#</a></h3>
+<p>To this point, we have seen that the convolution and pooling operations are defined by a set of parameters. In particular, the stride and padding parameters are used to control the spatial dimension of the output feature maps.</p>
+<p><strong>Stride</strong> is the number of elements (pixels in an image) by which the filter is shifted at each step. The stride parameter is used to control the spatial dimension of the output feature maps.
+Common values for the stride parameter are 1 and 2. A stride of 1 means that the filter is shifted by 1 pixel at each step. A stride of 2 means that the filter is shifted by 2 pixels at each step.</p>
+<figure class="align-default" id="stride-step0">
+<a class="reference internal image-reference" href="_images/stride_step0.png"><img alt="stride" src="_images/stride_step0.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 13 </span><span class="caption-text">Step 1 of the convolution operation with stride 2.</span><a class="headerlink" href="#stride-step0" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="stride-step1">
+<a class="reference internal image-reference" href="_images/stride_step1.png"><img alt="stride" src="_images/stride_step1.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 14 </span><span class="caption-text">Step 2 of the convolution operation with stride 2.</span><a class="headerlink" href="#stride-step1" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="stride-step2">
+<a class="reference internal image-reference" href="_images/stride_step2.png"><img alt="stride" src="_images/stride_step2.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 15 </span><span class="caption-text">Step 3 of the convolution operation with stride 2.</span><a class="headerlink" href="#stride-step2" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<figure class="align-default" id="stride-step3">
+<a class="reference internal image-reference" href="_images/stride_step3.png"><img alt="stride" src="_images/stride_step3.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 16 </span><span class="caption-text">Step 4 of the convolution operation with stride 2.</span><a class="headerlink" href="#stride-step3" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><a class="reference internal" href="#stride-step0"><span class="std std-numref">Fig. 13</span></a> shows the initial settings of the convolution operation with stride 2. The filter is placed on the top-left corner of the input image. The result of the convolution operation is 6, that is the first value of the feature map. Similarly the process goes on until the filter reaches the bottom-right corner of the image. <a class="reference internal" href="#stride-step1"><span class="std std-numref">Fig. 14</span></a>, <a class="reference internal" href="#stride-step2"><span class="std std-numref">Fig. 15</span></a>, and <a class="reference internal" href="#stride-step3"><span class="std std-numref">Fig. 16</span></a> show the following steps of the convolution operation.</p>
+<p>💡 Notice that the stride is the value by which the filter is shifted at each step <strong>both along the horizontal and vertical dimensions</strong>.</p>
+<p><strong>Padding</strong> is the number of elements (pixels in an image) added to each side of the input image. Padding is usually used to preserve the spatial dimension of the input image.
+In simple terms, padding is a “border” added to the input image. The value of the padding is usually 0 (zero padding - black border) or 1 (one padding - white border).</p>
+<figure class="align-default" id="padding">
+<a class="reference internal image-reference" href="_images/padding.png"><img alt="padding" src="_images/padding.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 17 </span><span class="caption-text">Padding applied to a 4x4 matrix. Padding size is 1.</span><a class="headerlink" href="#padding" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><a class="reference internal" href="#padding"><span class="std std-numref">Fig. 17</span></a> shows an example of padding. On the left, the input image. On the right, the padded image where the input matrix is reported in red and the padding is reported in blue. In this example, the padding size is 1.
+With an input image of size <span class="math notranslate nohighlight">\(n \times n\)</span>, the output image has size <span class="math notranslate nohighlight">\((n + 2p) \times (n + 2p)\)</span>, where <span class="math notranslate nohighlight">\(p\)</span> is the padding size.
+In the example of <a class="reference internal" href="#padding"><span class="std std-numref">Fig. 17</span></a>, the input image is a 4x4 matrix. The padding size is 1. The output image is a 6x6 matrix.</p>
+<div class="admonition-computing-the-feature-map-size admonition">
+<p class="admonition-title">Computing the feature map size</p>
+<p>Once set the parameters of the convolutional layer (filter size, stride, padding), it is possible to compute the size of the output feature map. The size of the output feature map is computed as follows:</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{align}
+\begin{split}
+&amp; \text{output size} = \frac{\text{input size} - \text{filter size} + 2 \times \text{padding}}{\text{stride}} + 1
+\end{split}
+\end{align}
+\]</div>
+<p>For example, if the input image is a 224x224 RGB image, the filter size is 3x3, the stride is 1, and the padding is 0, the size of the output feature map is:</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{align}
+\begin{split}
+&amp; \text{output size} = \frac{224 - 3 + 2 \times 0}{1} + 1 = 222
+\end{split}
+\end{align}
+\]</div>
+<p>Intuitively, the output feature map is smaller than the input image because the filter cannot be placed on the edges of the image. The <strong>padding</strong> is used to preserve the spatial dimension of the input image (+ sign in the equation).
+The <strong>stride</strong> instead is used to control the reduction of the spatial dimension of the output feature map (i.e., the denominator of the equation).</p>
+</div>
+<!-- ### Activation Functions
+
+The activation function is a non-linear function that is applied to the output of a layer. The activation function is usually applied after the convolutional and pooling layers. Similarly to fully connected neural networks, the activation function is used to introduce non-linearity in the network. The most common activation functions are:
+- **ReLU** (Rectified Linear Unit): $f(x) = max(0, x)$
+- **Sigmoid**: $f(x) = \frac{1}{1 + e^{-x}}$
+- **Tanh**: $f(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}$
+- **Softmax**: $f(x) = \frac{e^{x_i}}{\sum_{j=1}^{n} e^{x_j}}$
+
+The *softmax* activation function is usually applied to the output of the last layer of the network. The softmax function is used to convert the output of the network into a vector of probabilities. The output of the network is a vector of values between 0 and 1. The sum of the values in the vector is equal to 1. Each value in the vector represents the probability that the input belongs to a specific class. -->
+</section>
+<section id="receptive-field">
+<h3>Receptive Field<a class="headerlink" href="#receptive-field" title="Permalink to this heading">#</a></h3>
+<p>One relevant concept in convolutional neural networks is the <strong>receptive field</strong>. It is defined as the portion of the input image that is visible to a single neuron in the network. The receptive field is usually defined in terms of the number of pixels in the input image. For example, a receptive field of 3x3 means that the neuron can “see” a 3x3 portion of the input image.</p>
+<figure class="align-default" id="id2">
+<a class="reference internal image-reference" href="_images/receptive_field.png"><img alt="receptive_field" src="_images/receptive_field.png" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 18 </span><span class="caption-text">Example of receptive field in a CNN.</span><a class="headerlink" href="#id2" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p><a class="reference internal" href="#id2"><span class="std std-numref">Fig. 18</span></a> shows an example of receptive field in a CNN. The receptive field of the neuron in the third layer is 3x3 when considering the second layer. If we consider the input image (e.g., layer 1), the receptive field of the same neuron would be 9x9 (the entire image is 5x5 so the neuron can “see” the whole image).</p>
+<p>Intuitively, the receptive field defines the region of the input image that has contributed to the activation of a neuron in the network.</p>
+</section>
+</section>
+<section id="common-cnn-architectures">
+<h2>Common CNN Architectures<a class="headerlink" href="#common-cnn-architectures" title="Permalink to this heading">#</a></h2>
+<p>Since the introduction of the first CNN architecture in the 1980s, many different architectures have been proposed. They differ in terms of the number of layers, the number of filters, the pooling strategy, etc., but also in terms of architectural choices that have been made to improve both the performance and the training process of the network.</p>
+<section id="lenet-5">
+<h3>LeNet-5<a class="headerlink" href="#lenet-5" title="Permalink to this heading">#</a></h3>
+<figure class="align-default" id="lenet5">
+<a class="reference internal image-reference" href="_images/lenet5.jpeg"><img alt="lenet5" src="_images/lenet5.jpeg" style="width: 100%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 19 </span><span class="caption-text">LeNet-5 architecture.</span><a class="headerlink" href="#lenet5" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p>LeNet-5 <span id="id3">[<a class="reference internal" href="references.html#id5" title="Yann LeCun, Bernhard Boser, John S Denker, Donnie Henderson, Richard E Howard, Wayne Hubbard, and Lawrence D Jackel. Backpropagation applied to handwritten zip code recognition. Neural computation, 1(4):541–551, 1989.">LBD+89</a>]</span> is the first CNN architecture proposed by Yann LeCun and colleagues. The network was designed to recognize handwritten digits. The network is composed of 7 layers: 3 convolutional layers, 2 pooling layers, and 2 fully connected layers. The input of the network is a 32x32 grayscale image. The output of the network is a vector of probabilities, one for each class in the dataset (i.e., 10 in the case of MNIST).</p>
+<p>We can see that since the first convolutional layer, the number of filters (number of channels in the feature maps) increases from 1 (greyscale image) to 6. On the other hand, the spatial dimension of the feature maps decreases from 32x32 to 28x28. This is one of the main characteristics shared by many CNN architectures: going deeper in the network, the number of filters increases while the spatial dimension of the feature maps decreases.</p>
+</section>
+<section id="alexnet">
+<h3>AlexNet<a class="headerlink" href="#alexnet" title="Permalink to this heading">#</a></h3>
+<figure class="align-default" id="alex-net">
+<a class="reference internal image-reference" href="_images/alex_net.png"><img alt="alex_net" src="_images/alex_net.png" style="width: 100%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 20 </span><span class="caption-text">AlexNet architecture.</span><a class="headerlink" href="#alex-net" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p>AlexNet <span id="id4">[<a class="reference internal" href="references.html#id6" title="Alex Krizhevsky, Ilya Sutskever, and Geoffrey E Hinton. Imagenet classification with deep convolutional neural networks. Advances in neural information processing systems, 2012.">KSH12</a>]</span> is a CNN architecture proposed by Alex Krizhevsky and colleagues. The network was designed to classify images in the ImageNet dataset. The network is composed of 8 layers: 5 convolutional layers, 3 fully connected layers. The input of the network is a 224x224 RGB image. The output of the network is a vector of probabilities, one for each class in the dataset (i.e., 1000 in the case of ImageNet).</p>
+<p>We can see that the network is composed of two groups of layers. The first group is composed of 5 convolutional layers and 3 pooling layers. The second group is composed of 3 fully connected layers. The first group is responsible for extracting features from the input image. The second group is responsible for classifying the input image.</p>
+<p>It is worth mentioning that, at the time of its introduction, AlexNet was the first CNN architecture to use ReLU as activation function and dropout as regularization technique. AlexNet is also the winning entry of the ImageNet Large Scale Visual Recognition Challenge (ILSVRC) 2012, where it reduced the top-5 error by a large margin compared to the previous state-of-the-art.</p>
+</section>
+<section id="resnet">
+<h3>ResNet<a class="headerlink" href="#resnet" title="Permalink to this heading">#</a></h3>
+<figure class="align-default" id="res-block">
+<a class="reference internal image-reference" href="_images/res_block.png"><img alt="res_block" src="_images/res_block.png" style="width: 30%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 21 </span><span class="caption-text">ResBlock in ResNet architecture.</span><a class="headerlink" href="#res-block" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+<p>ResNet <span id="id5">[<a class="reference internal" href="references.html#id7" title="Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In Proceedings of the IEEE conference on computer vision and pattern recognition, 770–778. 2016.">HZRS16</a>]</span> is a CNN architecture proposed by Kaiming He and colleagues. Similarly to AlexNet, the network was designed to classify images in the ImageNet dataset. This network is the first to introduce the concept of <strong>residual learning</strong> that allows training <strong>very deep</strong> networks. There are different versions of ResNet, with 50, 101, 152, and 200 layers. The network is composed of a concatenation of <strong>residual blocks</strong>. Each residual block is composed of two convolutional layers, batch normalization, ReLU activation function, and a shortcut connection (i.e., the residual connection).</p>
+<p><a class="reference internal" href="#res-block"><span class="std std-numref">Fig. 21</span></a> shows an example of residual block. The input of the residual block is a feature map. The feature map is processed by two convolutional layers. The output of the residual block is the sum of the input feature map and the output of the second convolutional layer. The residual block is composed of two convolutional layers and a shortcut connection. The shortcut connection is used to add the input feature map to the output of the second convolutional layer. The output of the residual block is the sum of the input feature map and the output of the second convolutional layer.</p>
+<div class="note dropdown admonition">
+<p class="admonition-title">Residual Learning</p>
+<p>Residual learning is a technique in training <strong>exceptionally deep</strong> neural networks. The fundamental concept involves incorporating a shortcut connection between the input and the output of a layer. Specifically, the output of the layer is formed by summing the input with the output of the layer.</p>
+<p>The rationale behind residual learning lies in the belief that as layers are stacked in a network, the model can learn abstract features that are more useful for the downstream task than the shallower features acquired by less complex networks. However, this stacking of layers can bring to the <strong>vanishing gradient problem</strong>, a common obstacle in deep neural networks. The vanishing gradient problem manifests when the gradient of the loss function diminishes significantly with an increase in the number of layers. This slowdown in the gradient severely affect the training process.</p>
+<p>Residual learning provides an elegant solution to the vanishing gradient problem by introducing a <strong>shortcut connection</strong> that directly links the input to the output of a layer. This shortcut connection facilitates an <strong>uninterrupted flow</strong> of the gradient from the output back to the input of the layer, effectively mitigating the challenges posed by the vanishing gradient problem. As a result, residual learning empowers the training of extremely deep networks, enabling them to capture intricate patterns and representations essential for complex tasks.</p>
+<figure class="align-default" id="residual-learning">
+<a class="reference internal image-reference" href="_images/residual_learning.gif"><img alt="residual_learning" src="_images/residual_learning.gif" style="width: 80%;" /></a>
+<figcaption>
+<p><span class="caption-number">Fig. 22 </span><span class="caption-text">Residual learning.</span><a class="headerlink" href="#residual-learning" title="Permalink to this image">#</a></p>
+</figcaption>
+</figure>
+</div>
+<p>Many other CNN architectures have been proposed in the last years. Here are some references if the reader is interested in learning more about CNN architectures:</p>
+<ul class="simple">
+<li><p>VGG <span id="id6">[<a class="reference internal" href="references.html#id8" title="Karen Simonyan and Andrew Zisserman. Very deep convolutional networks for large-scale image recognition. arXiv preprint arXiv:1409.1556, 2014.">SZ14</a>]</span>, introduced the concept of using small convolutional filters (3x3) with stride 1 and padding 1.</p></li>
+<li><p>DenseNet <span id="id7">[<a class="reference internal" href="references.html#id9" title="Gao Huang, Zhuang Liu, Laurens Van Der Maaten, and Kilian Q Weinberger. Densely connected convolutional networks. In Proceedings of the IEEE conference on computer vision and pattern recognition, 4700–4708. 2017.">HLVDMW17</a>]</span>, introduced the concept of dense blocks, where each layer is connected to all the previous layers.</p></li>
+<li><p>Inception <span id="id8">[<a class="reference internal" href="references.html#id10" title="Christian Szegedy, Wei Liu, Yangqing Jia, Pierre Sermanet, Scott Reed, Dragomir Anguelov, Dumitru Erhan, Vincent Vanhoucke, and Andrew Rabinovich. Going deeper with convolutions. In Proceedings of the IEEE conference on computer vision and pattern recognition, 1–9. 2015.">SLJ+15</a>]</span>, introduced the concept of inception modules, where the input is processed by different convolutional filters and the output is concatenated.</p></li>
+<li><p>MobileNet <span id="id9">[<a class="reference internal" href="references.html#id11" title="Andrew G Howard, Menglong Zhu, Bo Chen, Dmitry Kalenichenko, Weijun Wang, Tobias Weyand, Marco Andreetto, and Hartwig Adam. Mobilenets: efficient convolutional neural networks for mobile vision applications. arXiv preprint arXiv:1704.04861, 2017.">HZC+17</a>]</span>, introduced the concept of depthwise separable convolution, where the convolution operation is split into two separate operations: depthwise convolution and pointwise convolution.</p></li>
+<li><p>EfficientNet <span id="id10">[<a class="reference internal" href="references.html#id12" title="Mingxing Tan and Quoc Le. Efficientnet: rethinking model scaling for convolutional neural networks. In International conference on machine learning, 6105–6114. PMLR, 2019.">TL19</a>]</span>, introduced the concept of compound scaling, where the depth, width, and resolution of the network are scaled together.</p></li>
+</ul>
+</section>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="convolutional-neural-networks-for-audio-data">
+<h1>Convolutional Neural Networks for Audio Data<a class="headerlink" href="#convolutional-neural-networks-for-audio-data" title="Permalink to this heading">#</a></h1>
+<section id="adapting-cnns-for-sequential-data">
+<h2>Adapting CNNs for Sequential Data<a class="headerlink" href="#adapting-cnns-for-sequential-data" title="Permalink to this heading">#</a></h2>
+</section>
+<section id="d-convolutional-layers">
+<h2>1-D Convolutional Layers<a class="headerlink" href="#d-convolutional-layers" title="Permalink to this heading">#</a></h2>
+<section id="convolutional-layers-for-temporal-patterns">
+<h3>Convolutional Layers for Temporal Patterns<a class="headerlink" href="#convolutional-layers-for-temporal-patterns" title="Permalink to this heading">#</a></h3>
+</section>
+<section id="pooling-strategies">
+<h3>Pooling Strategies<a class="headerlink" href="#pooling-strategies" title="Permalink to this heading">#</a></h3>
+</section>
+<section id="activation-functions">
+<h3>Activation Functions<a class="headerlink" href="#activation-functions" title="Permalink to this heading">#</a></h3>
+</section>
+</section>
+<section id="spectrogram-representation">
+<h2>Spectrogram Representation<a class="headerlink" href="#spectrogram-representation" title="Permalink to this heading">#</a></h2>
+<section id="short-time-fourier-transform">
+<h3>Short-Time Fourier Transform<a class="headerlink" href="#short-time-fourier-transform" title="Permalink to this heading">#</a></h3>
+</section>
+<section id="mel-spectrogram">
+<h3>Mel-Spectrogram<a class="headerlink" href="#mel-spectrogram" title="Permalink to this heading">#</a></h3>
+</section>
+</section>
+<section id="audio-cnn-architectures">
+<h2>Audio CNN Architectures<a class="headerlink" href="#audio-cnn-architectures" title="Permalink to this heading">#</a></h2>
+<section id="vggish">
+<h3>VGGish<a class="headerlink" href="#vggish" title="Permalink to this heading">#</a></h3>
+</section>
+<section id="wavenet-link">
+<h3>WaveNet <a class="reference external" href="https://deepmind.google/discover/blog/wavenet-a-generative-model-for-raw-audio/">link</a><a class="headerlink" href="#wavenet-link" title="Permalink to this heading">#</a></h3>
+</section>
+<section id="yamnet-link">
+<h3>YAMNet <a class="reference external" href="https://blog.tensorflow.org/2021/03/transfer-learning-for-audio-data-with-yamnet.html">link</a><a class="headerlink" href="#yamnet-link" title="Permalink to this heading">#</a></h3>
+</section>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="implementing-a-cnn-with-pytorch">
+<h1>Implementing a CNN with PyTorch<a class="headerlink" href="#implementing-a-cnn-with-pytorch" title="Permalink to this heading">#</a></h1>
+<section id="dataset">
+<h2>Dataset<a class="headerlink" href="#dataset" title="Permalink to this heading">#</a></h2>
+</section>
+<section id="model">
+<h2>Model<a class="headerlink" href="#model" title="Permalink to this heading">#</a></h2>
+</section>
+<section id="training">
+<h2>Training<a class="headerlink" href="#training" title="Permalink to this heading">#</a></h2>
+</section>
+<section id="evaluation">
+<h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this heading">#</a></h2>
+</section>
 </section>
 
     <script type="text/x-thebe-config">
@@ -430,6 +837,69 @@ document.write(`
             </div>
             
             
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Convolutional Neural Networks</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#introduction">Introduction</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#properties-of-image-data">Properties of Image Data</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-neural-network-architecture">Convolutional Neural Network Architecture</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-components">Basic Components</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-layers">Convolutional Layers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pooling-layers">Pooling Layers</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#stride-and-padding">Stride and Padding</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#receptive-field">Receptive Field</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#common-cnn-architectures">Common CNN Architectures</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#lenet-5">LeNet-5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#alexnet">AlexNet</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#resnet">ResNet</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-neural-networks-for-audio-data">Convolutional Neural Networks for Audio Data</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#adapting-cnns-for-sequential-data">Adapting CNNs for Sequential Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#d-convolutional-layers">1-D Convolutional Layers</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#convolutional-layers-for-temporal-patterns">Convolutional Layers for Temporal Patterns</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#pooling-strategies">Pooling Strategies</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#activation-functions">Activation Functions</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#spectrogram-representation">Spectrogram Representation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#short-time-fourier-transform">Short-Time Fourier Transform</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mel-spectrogram">Mel-Spectrogram</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#audio-cnn-architectures">Audio CNN Architectures</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#vggish">VGGish</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#wavenet-link">WaveNet link</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#yamnet-link">YAMNet link</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#implementing-a-cnn-with-pytorch">Implementing a CNN with PyTorch</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model">Model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#training">Training</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#evaluation">Evaluation</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav></div>
+
+</div></div>
               
             
           </div>

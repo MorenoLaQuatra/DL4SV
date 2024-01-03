@@ -119,12 +119,22 @@ alt: weights
 
 In the figure $w_1, w_2, w_3$ are the weights of the connections between the preceding neurons and the current neuron. The weights are the parameters of the neural network. The goal of the training process is to find the optimal values for the weights that minimize the loss function.
 
-**How to find the optimal values for the weights?**
-The training process is based on the *gradient descent* algorithm (or some variant of it). Each neuron has an activation function $g$ that computes the output of the neuron given the input and the weights:
+Defined in this way, the neural network is a function $f$ that maps the input $\mathbf{x}$ to the output $\mathbf{y}$ using a *linear combination* of the input and the weights:
 
 $$
-\mathbf{y} = g(\mathbf{x}, \mathbf{w})
+\mathbf{y} = f(\mathbf{x}, \mathbf{w}) = \sum_{i=1}^N w_i \mathbf{x}_i
 $$
+
+However, in practice, we are interested in learning more complex functions. To this end, we need to introduce a **non-linear activation function** $g$ that is applied to the output of each neuron: 
+
+$$
+\begin{align}
+\mathbf{y} &= g(\mathbf{x}, \mathbf{w}) \\
+&= g(\sum_{i=1}^N w_i \mathbf{x}_i)
+\end{align}
+$$
+
+The addition of a non-linear activation function introduces non-linearity to the model. This is **essential** because real-world data is often **complex and non-linear**. Without non-linear activation functions, the neural network would be limited to representing linear mappings, which are not sufficient for capturing intricate relationships in data.
 
 Some examples of activation functions are:
 - **sigmoid** $g(x) = \frac{1}{1 + e^{-x}}$
@@ -209,6 +219,10 @@ alt: activations
 ```
 ````
 
+
+**How to find the optimal values for the weights?**
+
+The training process is based on the *gradient descent* algorithm (or some variant of it). 
 The gradient descent algorithm is an iterative algorithm that updates the weights of the neural network at each iteration. The update rule is the following:
 
 $$
@@ -238,6 +252,19 @@ alt: training_process
 Sketch of the training process of a neural network. Image from [medium](https://medium.com/data-science-365/overview-of-a-neural-networks-learning-process-61690a502fa)
 ```
 
+### Activation Functions and Gradients
+
+The choice of the activation function is very important because it affects the training process. In particular, the activation function must be **differentiable** because we need to compute the gradient of the loss function with respect to the weights of the neural network.
+
+Gradients of the loss function with respect to the weights are crucial for the backpropagation algorithm, which updates the weights in the direction that minimizes the loss. Therefore, the activation function must have the following properties:
+- **Differentiability**: the activation function must be differentiable for all values of its input.
+- **Continuous gradients**: the gradient of the activation function must be continuous for all values of its input. Continuous gradients facilitate stable weight updates during training.
+- **Non-zero gradients**: the gradient of the activation function must be non-zero for all values of its input. 
+- **Smoothness**: the smoothness of the activation function allows consistent weight updates during training.
+
+One problem during the training process is the **vanishing gradient**. The vanishing gradient problem occurs when the gradient of the activation function is close to zero. In this case, the weights are not updated during the training process. Similarly, the **exploding gradient** problem occurs when the gradient of the activation function is very large. In this case, the weights are updated too much during the training process.
+The choice of the activation function could mitigate those problems.
+
 ### Optimization of a complex model
 
 In deep learning:
@@ -245,7 +272,19 @@ In deep learning:
 - each layer is composed of multiple neurons
 - each neuron has multiple weights
 
-The number of parameters in real-world neural networks grows very quickly. For this reason, while optimizing the parameters of a neural network, we usually parallelize the computation of the gradient. This is done by computing the gradient of the loss function with respect to the weights of each layer independently. This is called **mini-batch gradient descent**.
+The number of parameters in real-world neural networks grows very quickly. For this reason, while optimizing the parameters of a neural network, we usually parallelize the computation of the gradient. 
+In other words, instead of having a single training example $\mathbf{x_i}$, we use a batch of training examples $\mathbf{X} = \{\mathbf{x_1}, \mathbf{x_2}, \dots, \mathbf{x_N}\}$ to compute the gradient. 
+This approach is called **mini-batch gradient descent**. The size of the mini-batch $N$ is a hyperparameter of the model.
+
+```{figure} ./images/1_dl_intro/training_batch.png
+---
+width: 80%
+name: training_batch
+alt: training_batch
+---
+Training process with mini-batch. A complete iteration over the training data is called **epoch**.
+```
+
 
 ## Training and Validation
 
@@ -253,14 +292,135 @@ The training process involves the definition of the following components:
 - neural network architecture
 - loss function
 - optimization algorithm
-- learning rate and other hyperparameters
-- dataset(s)
+- hyperparameters (e.g., learning rate, batch size, etc.)
+- **dataset(s)**
 - metrics to evaluate the model
 
 In the *superised learning* setting, the training data is composed of input-output pairs. We are interested in training a model that is able to **generalize** to unseen data. To this end, we need to split the training data into (at least) two sets:
 - **training set** is used to train the model
 - **test set** is used to evaluate the model on unseen data
 
-Those two splits should be enough to train and evaluate the model. However, in practice, we need to **tune the hyperparameters** of the model. To this end, we need to split the training set into two sets:
-- **training set** is used to train the model
-- **validation set** is used to evaluate the model during the training process and it is used to identify the best set of hyperparameters (e.g., the learning rate $\alpha$, the number of epochs, etc.)
+In principle, those two splits should be enough to train and evaluate the model. However, in practice, we need to **tune the hyperparameters** of the model. In other words, we need to find the best set of hyperparameters that minimize the loss function on the test set. To this end, we need to split the training set into two sets:
+- **Training set** is used to train the model.
+- **validation set** is used to evaluate the model during the training process (e.g., at each epoch) and it is used to tune the  set of hyperparameters (e.g., the learning rate $\alpha$, the number of epochs, etc.).
+
+```{figure} ./images/1_dl_intro/train_val_test.png
+---
+width: 80%
+name: train_val_test
+alt: train_val_test
+---
+Split of the training data into training, validation, and test sets.
+Image from [towards data science](https://towardsdatascience.com/train-validation-and-test-sets-72cb40cba9e7)
+```
+
+Considering the data split, the training process now involves the following steps:
+1. Split the training data into training, validation, and test sets.
+2. Train the model on the training set.
+3. Evaluate the model on the validation set.
+4. Tune the hyperparameters of the model.
+5. Repeat steps 2-4 until the final model is selected.
+6. Evaluate the final model on the test set.
+
+```{note}
+In *traditional machine learning* is common to used cross-validation to tune the hyperparameters of the model. However, in deep learning, the training process is computationally expensive and the data is usually large. For this reason, we usually split the data into **fixed** training, validation, and test sets.
+```
+
+````{admonition} Code: Train-Validation-Test Split
+:class: tip, dropdown
+
+The following code snippet shows how to split the data into training, validation, and test sets using [scikit-learn](https://scikit-learn.org/stable/).
+
+```python
+from sklearn.model_selection import train_test_split
+
+X, y = load_data() # Load the data
+
+# split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+# split the training data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2)
+```
+````
+
+## Evaluation Metrics
+
+The evaluation of a model is based on the **evaluation metric(s)**. The evaluation metric is a function that measures the performance of the model on the test set. The choice of the evaluation metric depends on the task we are trying to solve. 
+
+**Classification** is the task of predicting a class label given an input. Some commonly used evaluation metrics for classification are:
+- **accuracy** is the ratio between the number of correct predictions and the total number of predictions. It is the most common evaluation metric for classification problems. 
+- 
+$$
+\text{accuracy} = \frac{\text{number of correct predictions}}{\text{total number of predictions}}
+$$
+
+- **precision** is the ratio between the number of true positives and the number of true positives and false positives. It measures the ability of the model to correctly predict the positive class.
+
+$$
+\text{precision} = \frac{\text{true positives}}{\text{true positives} + \text{false positives}}
+$$
+
+- **recall** is the ratio between the number of true positives and the number of true positives and false negatives. It measures the ability of the model to correctly predict the positive class.
+
+$$
+\text{recall} = \frac{\text{true positives}}{\text{true positives} + \text{false negatives}}
+$$
+
+- **F1-score** is the harmonic mean of precision and recall. It is a single metric that combines precision and recall.
+
+$$
+\text{F1-score} = 2 \times \frac{\text{precision} \times \text{recall}}{\text{precision} + \text{recall}}
+$$
+
+Many other evaluation metrics are available for classification problems. For example, the [confusion matrix](https://en.wikipedia.org/wiki/Confusion_matrix), the [ROC curve](https://en.wikipedia.org/wiki/Receiver_operating_characteristic), and the [AUC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic#Area_under_the_curve) are commonly used to evaluate classification models.
+
+**Regression** is the task of predicting a real-valued number given an input. Some commonly used evaluation metrics for regression are:
+- **mean squared error (MSE)** is the average of the squared differences between the predicted value and the ground truth value. It is the most common evaluation metric for regression problems.
+
+$$
+\text{MSE} = \frac{1}{N} \sum_{i=1}^N (\mathbf{y}_i - \mathbf{\hat{y}}_i)^2
+$$
+
+- **mean absolute error** is the average of the absolute differences between the predicted value and the ground truth value.
+
+$$
+\text{MAE} = \frac{1}{N} \sum_{i=1}^N |\mathbf{y}_i - \mathbf{\hat{y}}_i|
+$$
+
+- **root mean squared error (RMSE)** is the square root of the average of the squared differences between the predicted value and the ground truth value.
+
+$$
+\text{RMSE} = \sqrt{\frac{1}{N} \sum_{i=1}^N (\mathbf{y}_i - \mathbf{\hat{y}}_i)^2}
+$$
+
+````{admonition} Code: Evaluation Metrics
+:class: tip, dropdown
+
+In python, there are different packages that implement the evaluation metrics described above. For example, [scikit-learn](https://scikit-learn.org/stable/modules/model_evaluation.html) supports many evaluation metrics for classification and regression problems.
+
+```python
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+y_true = [0, 1, 2, 0, 1, 2]
+y_pred = [0, 2, 1, 0, 0, 1]
+
+# Compute accuracy
+accuracy = accuracy_score(y_true, y_pred)
+precision = precision_score(y_true, y_pred, average='macro')
+recall = recall_score(y_true, y_pred, average='macro')
+f1 = f1_score(y_true, y_pred, average='macro')
+print(f'Accuracy: {accuracy}')
+print(f'Precision: {precision}')
+print(f'Recall: {recall}')
+print(f'F1-score: {f1}')
+```
+
+````
+
+Many other evaluation metrics are available for regression problems. For example, the [mean absolute percentage error (MAPE)](https://en.wikipedia.org/wiki/Mean_absolute_percentage_error) is commonly used to evaluate regression models.
+
+# Conclusion
+
+In this chapter, we refreshed the main concepts of deep learning. In particular, we introduced the main components of a deep learning model and the training process. We also introduced the main evaluation metrics for classification and regression problems.
+
+With this in mind, we are ready to deep dive into the architectures and applications of deep learning models for speech and vision.
