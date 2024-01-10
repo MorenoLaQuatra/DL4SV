@@ -174,3 +174,127 @@ Positional encoding example. Image source [illustrated-transformer](http://jalam
 ## Attention Mechanism
 
 At this point of the chapter, we have converted the input sequence into a sequence of vector embeddings. The next step is to process the embeddings using the attention mechanism. The attention mechanism is the core of the transformer architecture. It is used to learn the relationships between the different elements of the sequence.
+
+The attention mechanism is a mechanism that allows the model to learn the relationships between the different elements of the sequence. the process can be divided into three steps:
+1. **Query, Key, and Value**. The input embeddings are first *split* into three vectors: the query vector, the key vector, and the value vector. 
+2. **Attention**. The query vector is compared to the key vector to produce a score, e.g., a float value between 0 and 1. The score is then used to compute a weighted average of the value vector. The weighted average is called the *attention vector*.
+3. **Output**. The attention vector is then processed by a linear layer to produce the output vector.
+
+```{figure} images/3_transformers/attention.gif
+---
+width: 100%
+name: attention_animation
+alt: attention_animation
+---
+Attention mechanism steps. Image source [towardsdatascience](https://towardsdatascience.com/illustrated-self-attention-2d627e33b2)
+```
+
+{numref}`attention_animation` shows an example of the attention mechanism. The input embeddings are first split into three vectors: the query vector, the key vector, and the value vector.
+- **Query**. The query vector is used to *ask* to all other elements of the sequence *how much* they are related to the current element. The dot product between the query vector and the key vector is used to compute a score (the higher the score, the more related the elements are). The score is then normalized using a softmax function to produce a probability distribution over all the elements of the sequence.
+- **Key**. The key vector is used to *answer* to the query. Each value vector is multiplied with the *query* of the other elements of the sequence. *query* and *key* are the vectors that, multiplied together, produce the score.
+- **Value**. Once obtained a score for each element of the sequence, the *value* vector is multiplied with the score to produce a weighted average of the value vector. The weighted average is called the *attention vector*.
+
+The final vector representation for a given input element of the sequence is given by the sum of the attention vectors of all the elements of the sequence. 
+
+💡 Note that, the attention mechanism is usually referred to *self*-attention because the attention score is computed between a given element of the sequence and all the other elements, including itself.
+
+If we put this into equations, we have:
+
+$$
+\text{Attention}(Q, K, V) = \text{softmax}(\frac{QK^T}{\sqrt{d_k}})V
+$$
+
+where $Q$ is the query vector, $K$ is the key vector, $V$ is the value vector, and $d_k$ is the size of the key vector. $\sqrt{d_k}$ is used to scale the dot product between $Q$ and $K$. The softmax function is applied to each row of the matrix $QK^T$ to produce a probability distribution over all the elements of the sequence. The probability distribution is then used to compute a weighted average of the value vector $V$.
+The formula above is the *matrix form* of the attention mechanism.
+
+Each element of the sequence is processed independently by the attention mechanism. This means that the attention mechanism can be computed in parallel for all the elements of the sequence. This is one of the reasons why transformers are faster than RNNs on modern hardware (e.g., GPUs).
+
+Coming back to our bottom-up approach, the attention mechanism is used to process the embeddings of the input sequence (after the positional encoding). The output of the attention mechanism is a sequence of vectors having the same size and shape as the input embeddings. After the attention mechanism a simple linear layer is used to produce the output embeddings (typically without altering the size of the embeddings).
+
+**Multi-head Attention**. The attention mechanism described above is called *single-head attention*. In practice, the attention mechanism is computed multiple times in parallel on subsets of the embeddings. Each subset is called a *head*. Before feeding the embedding into the self-attention layer, in case of multi-head attention, the vector is first split into parts and each part is processed by a different head. The output of the self-attention layer is then the concatenation of the output of each head. The output of the self-attention layer is then processed by a linear layer to produce the output embeddings.
+
+```{figure} images/3_transformers/multi-head-attention.svg
+---
+width: 50%
+name: multi-head-attention
+alt: multi-head-attention
+---
+Example of multi-head attention (e.g., number of attention heads $h=2$).
+```
+
+{numref}`multi-head-attention` shows an example of multi-head attention. In practice, all implementations of modern transformer models use multi-head attention (e.g., BERT, GPT-2, ViT, etc.). The number of heads is a **hyperparameter** of the model, similarly to the embedding size. It is worth noting that, the number of heads should be a number such that the size of the input embedding is divisible by the number of heads.
+For example, if the embedding size is $512$, we can use $8$ heads ($512/8 = 64$) or $16$ heads ($512/16 = 32$) but not $10$ heads ($512/10 = 51.2$).
+
+## Feed-Forward and Residual Connections
+
+After the attention mechanism, the output embeddings are processed by a feed-forward network. The feed-forward network is a simple linear layer followed by a non-linear activation function (e.g., ReLU). 
+
+Similarly to what we have seen with ResNets {cite:ps}`he2015deep`, in each layer of the encoder and decoder, there are *residual connections* that sum up the output of a sub-layer with the input of the sub-layer.
+
+```{figure} images/3_transformers/transformer_residual_layer_norm_2.png
+---
+width: 50%
+name: transformer_residual_layer_norm
+alt: transformer_residual_layer_norm
+---
+Residual connections and layer normalization. Image source [illustrated-transformer](http://jalammar.github.io/illustrated-transformer/)
+```
+
+{numref}`transformer_residual_layer_norm` shows an example of residual connections and layer normalization. Both the output of the attention layer and the output of the feed-forward network are added to the input embeddings. The output of the residual connections is then processed by a layer normalization layer. Layer normalization is a technique that consists of normalizing the output of a layer using the mean and variance of the output of the layer. Layer normalization is used to make the training of the model more stable and efficient.
+
+## Encoder and Decoder Models
+
+At this point we have all the ingredients to create an encoder transformer layer. The encoder model is composed of:
+- **Embedding layer**. The embedding layer converts the input sequence into a sequence of vector embeddings.
+- **Positional encoding**. The positional encoding injects information about the position of each element of the sequence into the model.
+- **Encoder layers**. The encoder layers process the embeddings using:
+    - **Multi-head attention**. The multi-head attention mechanism is used to learn the relationships between the different elements of the sequence.
+    - **Feed-forward network**. The feed-forward network is used to process the output of the multi-head attention mechanism.
+    - **Residual connections**. The residual connections are used to sum up the output of the multi-head attention mechanism with the input embeddings.
+    - **Layer normalization**. The layer normalization is used to normalize the output of the encoder layer.
+
+A stack of encoder layers is used to create the encoder model. The output of the encoder is the output embeddings of the last encoder layer.
+We can use this encoder model to extract features from a sequence. For example, we can use the encoder model to extract features from an audio sequence and then use those features to perform speech recognition.
+
+The decoder model, when used in decoder-only mode, is similar to the encoder model. The decoder model is composed of:
+- **Embedding layer**. The embedding layer converts the input sequence into a sequence of vector embeddings.
+- **Positional encoding**. The positional encoding injects information about the position of each element of the sequence into the model.
+- **Decoder layers**. The decoder layers process the embeddings using:
+    - **Masked multi-head attention**. The masked multi-head attention mechanism is used to learn the relationships between the different elements of the sequence. The attention mechanism is masked to prevent the decoder from "seeing" the future elements of the sequence.
+    - **Feed-forward network**. The feed-forward network is used to process the output of the multi-head attention mechanism.
+    - **Residual connections**. The residual connections are used to sum up the output of the multi-head attention mechanism with the input embeddings.
+    - **Layer normalization**. The layer normalization is used to normalize the output of the decoder layer.
+
+Notice that, the attention layer of the decoder is referred as **masked** multi-head attention because it is masked to prevent the decoder from "seeing" the future elements of the sequence.
+
+```{figure} images/3_transformers/masked-self-attention.png
+---
+width: 75%
+name: masked-self-attention
+alt: masked-self-attention
+---
+Comparison between self-attention and masked self-attention. Image source [illustrated-transformer](http://jalammar.github.io/illustrated-transformer/)
+```
+
+{numref}`masked-self-attention` shows an example of masked self-attention and the comparison with self-attention operation. When processing element $x_i$, the masked self-attention mechanism is masked to prevent the decoder from "seeing" the future elements of the sequence $x_{i+1}, x_{i+2}, ..., x_n$. The *masked*-self attention mechanism is usually implemented by adding a mask to the softmax function. The mask contains $-\infty$ values for all the elements of the sequence that we want to mask. The $-\infty$ values are used to set the attention score to $0$ after the softmax function. This means that the decoder will not be able to attend to the masked elements of the sequence.
+
+## Encoder-Decoder (Sequence-to-sequence) Models
+
+We have seen how to design layers for the encoder and decoder models. **Encoder** models are used to extract features from a sequence. **Decoder** models are used to generate a sequence *based on* the previous elements of the sequence. **Encoder-decoder** models are used to generate data *conditioned on* another sequence. For example, we can use an encoder-decoder model to translate a sentence from English to French or to generate the transcription of an audio sequence.
+
+The encoder-decoder model is composed of:
+- **Encoder**. The encoder is used to extract features from the input sequence.
+- **Decoder**. The decoder is used to generate the output sequence based on the extracted features.
+  - **Cross-attention (encoder-decoder attention)**. The decoder in this case adds an additional attention layer that allows the decoder to *condition* the output sequence on the input sequence. The cross-attention layer is similar to the self-attention layer of the encoder. The only difference is that the cross-attention layer is used to learn the relationships between the elements of the input sequence and the elements of the output sequence.
+
+```{figure} images/3_transformers/cross-attention-endec.png
+---
+width: 100%
+name: cross-attention-endec
+alt: cross-attention-endec
+---
+Encoder-decoder model showing the cross-attention layer. Image source [illustrated-transformer](http://jalammar.github.io/illustrated-transformer/)
+```
+
+{numref}`cross-attention-en-dec` shows an example of an encoder-decoder model. The input sequence is first converted into a sequence of vector embeddings $X = \{x_1, x_2, ..., x_n\}$ using an embedding layer. The embeddings are then processed by the encoder layers. The output of the encoder is the output embeddings $Y = \{y_1, y_2, ..., y_n\}$ of the last layer. The output embeddings are then processed by the decoder layers. Here we have an **additional** attention layer that leverage **key** and **value** vectors from the encoder to combine the output embeddings of the encoder with the output embeddings of the decoder. The output of the decoder is the output embeddings $Z = \{z_1, z_2, ..., z_n\}$ of the last layer.
+The example reported in {numref}`cross-attention-en-dec` is in the context of NLP. However, the very same architecture can be used in the context of audio, images, or multi-modal data (e.g., an audio sequence is encoded into a sequence of embeddings and then decoded into a sequence of text for speech recognition) {cite:ps}`radford2023robust`.
