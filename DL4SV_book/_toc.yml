@@ -7,6 +7,6 @@ chapters:
 - file: 1_dl_intro.md
 - file: 2_cnns.md
 - file: 3_transformers.md
-- file: 4_vision_applications.md
-- file: 5_audio_speech_applications.md
+- file: 4_libraries.md
+- file: 5_applications.md
 - file: references.md

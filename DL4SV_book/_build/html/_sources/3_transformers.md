@@ -141,6 +141,7 @@ Embedding layer as a lookup table. Image source [lena-voita](https://lena-voita.
 
 {numref}`lookup_table` shows an example of an embedding layer in the context of NLP (it is simpler to visualize in this context). The embedding layer is a lookup table that maps each word of the input sequence to a vector of a specific size.
 
+(pos_encoding_section)=
 ## Positional Encoding
 
 After the embedding layer, the input sequence is converted into a sequence of vector embeddings. As we can see later, the attention mechanism, at the core of the transformer architecture, does not take into account the position of each element of the sequence. To inject this information into the model, we use a technique called *positional encoding*.
@@ -296,5 +297,277 @@ alt: cross-attention-endec
 Encoder-decoder model showing the cross-attention layer. Image source [illustrated-transformer](http://jalammar.github.io/illustrated-transformer/)
 ```
 
-{numref}`cross-attention-en-dec` shows an example of an encoder-decoder model. The input sequence is first converted into a sequence of vector embeddings $X = \{x_1, x_2, ..., x_n\}$ using an embedding layer. The embeddings are then processed by the encoder layers. The output of the encoder is the output embeddings $Y = \{y_1, y_2, ..., y_n\}$ of the last layer. The output embeddings are then processed by the decoder layers. Here we have an **additional** attention layer that leverage **key** and **value** vectors from the encoder to combine the output embeddings of the encoder with the output embeddings of the decoder. The output of the decoder is the output embeddings $Z = \{z_1, z_2, ..., z_n\}$ of the last layer.
-The example reported in {numref}`cross-attention-en-dec` is in the context of NLP. However, the very same architecture can be used in the context of audio, images, or multi-modal data (e.g., an audio sequence is encoded into a sequence of embeddings and then decoded into a sequence of text for speech recognition) {cite:ps}`radford2023robust`.
+{numref}`cross-attention-endec` shows an example of an encoder-decoder model. The input sequence is first converted into a sequence of vector embeddings $X = \{x_1, x_2, ..., x_n\}$ using an embedding layer. The embeddings are then processed by the encoder layers. The output of the encoder is the output embeddings $Y = \{y_1, y_2, ..., y_n\}$ of the last layer. The output embeddings are then processed by the decoder layers. Here we have an **additional** attention layer that leverage **key** and **value** vectors from the encoder to combine the output embeddings of the encoder with the output embeddings of the decoder. The output of the decoder is the output embeddings $Z = \{z_1, z_2, ..., z_n\}$ of the last layer.
+The example reported in {numref}`cross-attention-endec` is in the context of NLP. However, the very same architecture can be used in the context of audio, images, or multi-modal data (e.g., an audio sequence is encoded into a sequence of embeddings and then decoded into a sequence of text for speech recognition) {cite:ps}`radford2023robust`.
+
+## An Encoder-Decoder Model in PyTorch
+
+We have seen how to design the different components of the transformer architecture. In this section, we will see how to implement an encoder-decoder model in pure PyTorch.
+
+### Embedding Layer
+
+The embedding layer is a simple linear layer that maps each element of the input sequence to a vector of a specific size. The size of the vector is called the *embedding size* and is (for convenience) a power of 2, or at least divisible by 2 and 3.
+
+```{code-block} python
+import torch.nn as nn
+
+class EmbeddingLayer(nn.Module):
+    def __init__(self, vocab_size, embedding_size):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embedding_size)
+
+    def forward(self, x):
+        return self.embedding(x)
+```
+
+When calling the embedding layer, we pass the input sequence in terms of **ids**. The ids are integers that represent the elements of the sequence. For example, in the case of text, the ids are the indices of the words in the vocabulary. In the case of audio, the ids are the indices of the frames in the vocabulary. Depending on the domain, we may not need an embedding layer. For example, in the case of images, we can use the pixel values as input to the model.
+
+Let's take a look at the input-output shape of the embedding layer.
+- **Input**. The input of the embedding layer is a sequence of ids. The shape of the input is $(B, S)$ where $B$ is the batch size and $S$ is the sequence length.
+- **Output**. The output of the embedding layer is a sequence of vector embeddings. The shape of the output is $(B, S, E)$ where $B$ is the batch size, $S$ is the sequence length, and $E$ is the embedding size.
+
+### Positional Encoding
+
+The positional encoding is a technique that consists of **injecting information about the position** of each element of the sequence into the model. There are different implementations of positional encoding. The traditional implementation is based on sinusoidal functions. For each position $i$ of the input sequence, we compute a vector $PE_i$ of the same size as the embeddings. The vector $PE_i$ is then added to the embeddings $x_i$ to produce the final embeddings $x_i + PE_i$.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, embedding_size, dropout=0.1, max_len=5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+
+        pe = torch.zeros(max_len, embedding_size)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, embedding_size, 2).float() * (-math.log(10000.0) / embedding_size))
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        x = x + self.pe[:x.size(0), :]
+        return self.dropout(x)
+```
+
+The positional encoding is implemented as a PyTorch module. It is initialized with the embedding size and the dropout rate. The positional encoding is computed in the `forward` method. We define a set of frequencies $f$ and compute the vector $PE_i$ accordingly (review the Section on {ref}`pos_encoding_section` for more details).
+
+When passing through the positional encoding layer, the input embeddings are summed up with the positional encoding vectors, therefore their shape does not change $$(B, S, E) \rightarrow (B, S, E)$$.
+
+There are several other implementations of positional encoding. For example, we can have a learnable positional encoding that is learned during training. It is implemented using an embedding layer.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, embedding_size, dropout=0.1, max_len=5000):
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        self.embedding = nn.Embedding(max_len, embedding_size)
+
+    def forward(self, x):
+        position = torch.arange(0, x.size(1), dtype=torch.long, device=x.device)
+        position = position.unsqueeze(0).expand_as(x)
+        x = x + self.embedding(position)
+        return self.dropout(x)
+```
+
+In this case, the positional encoding is learned during training. We should pay attention to the fact that this implementation does not force the model to learn the time-related patterns in the data. The name *positional encoding* is only used for convenience as it may learn **other** patterns in the data.
+
+### Attention Mechanism
+
+Diving inside the transformer architecture, we need to implement the attention mechanism. The attention mechanism is a mechanism that allows the model to learn the relationships between the different elements of the sequence. The process can be divided into three steps:
+1. **Query, Key, and Value**. The input embeddings are first *split* into three vectors: the query vector, the key vector, and the value vector.
+2. **Attention**. The query vector is compared to the key vector to produce a score, e.g., a float value between 0 and 1. The score is then used to compute a weighted average of the value vector. The weighted average is called the *attention vector*.
+3. **Output**. The attention vector is then processed by a linear layer to produce the output vector.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class MHSA(nn.Module):
+    def __init__(self, embedding_size, num_heads):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_size = embedding_size // num_heads
+        self.scale = self.head_size ** -0.5
+
+        self.query = nn.Linear(embedding_size, embedding_size)
+        self.key = nn.Linear(embedding_size, embedding_size)
+        self.value = nn.Linear(embedding_size, embedding_size)
+        self.out = nn.Linear(embedding_size, embedding_size)
+
+    def forward(self, x):
+        B, S, E = x.size()
+        Q = self.query(x).view(B, S, self.num_heads, self.head_size).transpose(1, 2)
+        K = self.key(x).view(B, S, self.num_heads, self.head_size).transpose(1, 2)
+        V = self.value(x).view(B, S, self.num_heads, self.head_size).transpose(1, 2)
+
+        scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+        scores = scores.softmax(dim=-1)
+        scores = scores.matmul(V).transpose(1, 2).reshape(B, S, E)
+        return self.out(scores)
+```
+
+The class `MHSA` implements the multi-head attention mechanism. The input of the attention mechanism is a sequence of embeddings. The embeddings are first split into three vectors: the query vector, the key vector, and the value vector. The query, key, and value vectors are then processed by three linear layers. The output of the linear layers is then split into multiple heads. The number of heads is a **hyperparameter** of the model. The output of the attention mechanism is the concatenation of the output of each head. The output of the attention mechanism is then processed by a linear layer to produce the output embeddings.
+
+Similarly to the positional encoding, the MHSA is implemented as a PyTorch module. The input and output of the MHSA are embeddings, therefore their shape does not change $$(B, S, E) \rightarrow (B, S, E)$$.
+
+````{admonition} Test MHSA implementation
+:class: tip
+We can test the implementation of the MHSA module by creating a random input tensor and passing it through the module.
+
+```{code-block} python
+import torch
+from mhsa import MHSA # import the MHSA module
+
+mhsa = MHSA(embedding_size=512, num_heads=8) # create the MHSA module
+x = torch.randn(2, 10, 512) # create a random input tensor
+y = mhsa(x) # pass the input tensor through the MHSA module
+print(y.shape) # print the shape of the output tensor
+```
+````
+
+### Cross-Attention
+
+The cross-attention layer is similar to the self-attention layer of the encoder. The only difference is that the cross-attention layer is used to learn the relationships between the elements of the input sequence and the elements of the output sequence.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class CrossAttention(nn.Module):
+    def __init__(self, embedding_size, num_heads):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_size = embedding_size // num_heads
+        self.scale = self.head_size ** -0.5
+
+        self.query = nn.Linear(embedding_size, embedding_size)
+        self.key = nn.Linear(embedding_size, embedding_size)
+        self.value = nn.Linear(embedding_size, embedding_size)
+        self.out = nn.Linear(embedding_size, embedding_size)
+
+    def forward(self, x, y):
+        '''
+        x: input embeddings
+        y: vector to "cross-attend" to
+        '''
+        B, S, E = x.size()
+        Q = self.query(x).view(B, S, self.num_heads, self.head_size).transpose(1, 2) # queries are computed from x
+        K = self.key(y).view(B, S, self.num_heads, self.head_size).transpose(1, 2) # keys are computed from y
+        V = self.value(y).view(B, S, self.num_heads, self.head_size).transpose(1, 2) # values are computed from y
+
+        scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+        scores = scores.softmax(dim=-1)
+        scores = scores.matmul(V).transpose(1, 2).reshape(B, S, E)
+        return self.out(scores)
+```
+
+As noted also in code comments, the queries are computed from the input embeddings $x$ while the keys and values are computed from the vector $y$. All the other considerations are the same as the self-attention layer (e.g., the output of the cross-attention layer is the concatenation of the output of each head).
+
+### Feed-Forward and Residual Connections
+
+After the attention mechanism, the output embeddings are processed by a feed-forward network. The feed-forward network is a simple linear layer followed by a non-linear activation function (e.g., ReLU).
+
+Similarly to what we have seen with ResNets {cite:ps}`he2015deep`, in each layer of the encoder and decoder, there are *residual connections* that sum up the output of a sub-layer with the input of the sub-layer.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class FeedForward(nn.Module):
+    def __init__(self, embedding_size, hidden_size):
+        super().__init__()
+        self.linear1 = nn.Linear(embedding_size, hidden_size)
+        self.linear2 = nn.Linear(hidden_size, embedding_size)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.relu(self.linear1(x))
+        x = self.linear2(x)
+        return x
+
+class Residual(nn.Module):
+    def __init__(self, sublayer, dropout):
+        super().__init__()
+        self.sublayer = sublayer
+        self.dropout = nn.Dropout(p=dropout)
+        self.norm = nn.LayerNorm(sublayer.size)
+
+    def forward(self, x):
+        return x + self.dropout(self.sublayer(self.norm(x)))
+```
+
+The class `FeedForward` implements the feed-forward network. The class `Residual` implements the residual connections. The Residual class is usually not used in real implementations of transformer models.
+Instead, the residual connections are implemented directly in the encoder and decoder layers.
+
+```{code-block} python
+
+# ... other code ...
+x # is the tensor we want to add for the residual connection
+x_ff = self.ff(x) # pass x through the feed-forward network
+x_ff = self.dropout(x_ff) # apply dropout
+x = x + x_ff # add the residual connection
+```
+
+### Encoder and Decoder Models
+
+At this point we have all the ingredients to create an encoder transformer layer. The encoder model is composed of:
+- **Embedding layer**. The embedding layer converts the input sequence into a sequence of vector embeddings. If we deal with vectorized data (e.g., images), we can skip this step or implement it differently {cite:ps}`liu2020mockingjay`.
+- **Positional encoding**. The positional encoding injects information about the position of each element of the sequence into the model.
+- **Encoder layers**. The encoder layers process the embeddings using:
+    - **Multi-head attention**. The multi-head attention mechanism is used to learn the relationships between the different elements of the sequence.
+    - **Feed-forward network**. The feed-forward network is used to process the output of the multi-head attention mechanism.
+    - **Residual connections**. The residual connections are used to sum up the output of the multi-head attention mechanism with the input embeddings.
+    - **Layer normalization**. The layer normalization is used to normalize the output of the encoder layer.
+- **Output**. The output of the encoder is the output embeddings of the last encoder layer.
+
+A stack of encoder layers is used to create the encoder model. The output of the encoder is the output embeddings of the last encoder layer.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class EncoderLayer(nn.Module):
+    def __init__(self, embedding_size, num_heads, hidden_size, dropout):
+        super().__init__()
+        self.mhsa = MHSA(embedding_size, num_heads)
+        self.ff = FeedForward(embedding_size, hidden_size)
+        self.residual1 = Residual(self.mhsa, dropout)
+        self.residual2 = Residual(self.ff, dropout)
+
+    def forward(self, x):
+        x = self.residual1(x)
+        x = self.residual2(x)
+        return x
+
+class Encoder(nn.Module):
+    def __init__(self, embedding_size, num_heads, hidden_size, dropout, num_layers):
+        super().__init__()
+        self.layers = nn.ModuleList([EncoderLayer(embedding_size, num_heads, hidden_size, dropout) for _ in range(num_layers)])
+        self.norm = nn.LayerNorm(embedding_size)
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return self.norm(x)
+```
+
+The class `EncoderLayer` implements a single encoder layer. The class `Encoder` implements a stack of encoder layers. The output of the encoder is the output embeddings of the last encoder layer.
+
+```{admonition} Note on the number of layers
+:class: tip
+The number of layers is a **hyperparameter** of the model. The number of layers is usually between 6 and 12. The number of layers is usually the same for the encoder and decoder. However, it is possible to use a different number of layers for the encoder and decoder.
+```
+
+# Conclusion
+
+In this chapter, we have seen all the components behind one of the most popular deep learning architectures: the transformer (encoder decoder) and its encoder-only and decoder-only variants. We have seen how to implement the different components of the transformer architecture in pure PyTorch.
+
+This architecture has basically revolutionized the field of deep learning. It has been used in many different domains (e.g., NLP, audio, images, multi-modal data, etc.) and has achieved state-of-the-art results in many different tasks (e.g., speech recognition, machine translation, image classification, etc.).
+
+In the next chapter, we will get our hands dirty and we will see how to use the transformer architecture in practice, both starting from scratch and using pre-trained models.
