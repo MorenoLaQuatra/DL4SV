@@ -24,10 +24,11 @@ The book is written in [Jupyter Book](https://jupyterbook.org/intro.html), a col
 
 The course aims at providing the students with the basic knowledge of deep learning for speech and vision. The course will cover the following topics:
 
-- Deep Learning architectures: CNNs, Transformers
-- How to train a deep learning model
-- Vision use-case: Image Classification
-- Audio use-case: Language Identification
+- Introduction to Deep Learning
+- Convolutional Neural Networks
+- Transformers and Attention Mechanism
+- Deep Learning libraries for complete project management
+- Applications and case studies in Speech and Vision (with practical examples in PyTorch)
 
 The course provide introduces both the theoretical and practical aspects of deep learning. The students will be required to implement a deep learning model for a given task as final course project.
 
