@@ -18,7 +18,7 @@ The book is written in [Jupyter Book](https://jupyterbook.org/intro.html), a col
 |:-------------------------:|:-------------------------:|
 |**Instructor** | [Moreno La Quatra](https://www.mlaquatra.me) |
 |**Email** | [moreno.laquatra@unikore.it](mailto:moreno.laquatra@unikore.it) |
-|**Semester** | Fall (Feb 2024) |
+|**Semester** | Fall - February 2026 - current (since Feb. 2024) |
 
 ## Course Description
 
