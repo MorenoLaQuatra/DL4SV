@@ -11,12 +11,334 @@ Image generated using [OpenDALL-E](https://huggingface.co/spaces/mrfakename/Open
 
 ## Introduction
 
-In this chapter, we will cover the basics of transformers, a type of neural network architecture that has been initially developed for natural language processing (NLP) tasks but has since been used and adapted for other modalities such as images, audio, and video. 
+In this chapter, we will cover the basics of transformers, a type of neural network architecture that has been initially developed for natural language processing (NLP) tasks but has since been used and adapted for other modalities such as images, audio, and video.
+
+### Why Transformers?
+
+Before transformers, sequential data (text, audio, time series) was primarily processed using **Recurrent Neural Networks (RNNs)** and their variants like **LSTMs (Long Short-Term Memory)** and **GRUs (Gated Recurrent Units)**.
+
+**Limitations of RNNs:**
+
+1. **Sequential processing**: RNNs process data one step at a time, making them slow to train
+   - Cannot parallelize computation across the sequence
+   - Training time grows linearly with sequence length
+
+2. **Long-range dependencies**: Despite LSTMs and GRUs, modeling very long sequences remains challenging
+   - Information from early tokens gets diluted as the sequence progresses
+   - Gradient vanishing/exploding still occurs for very long sequences
+
+3. **Fixed context**: Each position can only access information from previous positions (in standard RNNs)
+   - Cannot look ahead in the sequence
+   - Cannot directly access arbitrary positions
+
+**The Transformer Solution:**
+
+Transformers address these limitations through the **attention mechanism**:
+- **Parallel processing**: All positions are processed simultaneously
+- **Direct access**: Each position can directly attend to any other position
+- **Flexible context**: Can look at the entire sequence (past and future) at once
+- **Scalability**: Easily scale to very long sequences with efficient implementations
+
+**Impact:** Since their introduction in 2017, transformers have become the dominant architecture in:
+- Natural Language Processing (BERT, GPT, T5)
+- Computer Vision (ViT, DETR)
+- Speech Processing (Wav2Vec 2.0, Whisper)
+- Multimodal AI (CLIP, DALL-E)
 
 The transformer architecture is designed for modeling sequential data, such as text, audio, and video. It is based on the idea of self-attention, which is a mechanism that allows the network to learn the relationships between different elements of a sequence. For example, in the case of an audio sequence, the network can learn the relationships between different frames of the audio signal and leverage the correlations between them to perform a task such as speech recognition.
 
 The original Transformer architecture was introduced in the paper [Attention Is All You Need](https://arxiv.org/abs/1706.03762) {cite:ps}`vaswani2017attention`
 by Vaswani et al. in 2017. Since then, many variants of the original architecture have been proposed, and transformers have become the state-of-the-art architecture for many tasks. In this chapter, we will cover all the building blocks of the transformer architecture and show how they can be used for different tasks.
+
+````{admonition} Deep Dive: Understanding RNNs, LSTMs, and GRUs
+:class: dropdown
+
+To fully appreciate why transformers are revolutionary, we need to understand the architectures they replaced. **Recurrent Neural Networks (RNNs)** were the dominant approach for sequential data before transformers.
+
+### Basic Recurrent Neural Networks
+
+An RNN processes a sequence one element at a time, maintaining a **hidden state** that captures information about the sequence seen so far.
+
+**Architecture:**
+
+At each time step $t$, an RNN takes:
+- Current input $x_t$
+- Previous hidden state $h_{t-1}$
+
+And produces:
+- New hidden state $h_t$
+- Output $y_t$ (optional)
+
+The computation is:
+
+$$
+\begin{align}
+h_t &= \tanh(W_{hh} h_{t-1} + W_{xh} x_t + b_h) \\
+y_t &= W_{hy} h_t + b_y
+\end{align}
+$$
+
+where $W_{hh}$, $W_{xh}$, and $W_{hy}$ are weight matrices, and $b_h$, $b_y$ are bias vectors.
+
+```{figure} images/3_transformers/rnn_unrolled.png
+---
+width: 100%
+name: rnn_unrolled
+alt: rnn_unrolled
+---
+RNN unrolled through time. The same weights are shared across all time steps.
+```
+
+**Key insight:** The same weights are applied at every time step. The network "remembers" previous inputs through the hidden state, which is updated at each step.
+
+**Simple PyTorch implementation:**
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class SimpleRNN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.hidden_size = hidden_size
+        
+        # Weights
+        self.i2h = nn.Linear(input_size + hidden_size, hidden_size)
+        self.i2o = nn.Linear(input_size + hidden_size, output_size)
+        
+    def forward(self, x, hidden):
+        # x: (batch_size, input_size)
+        # hidden: (batch_size, hidden_size)
+        
+        # Concatenate input and hidden state
+        combined = torch.cat([x, hidden], dim=1)
+        
+        # Compute new hidden state
+        hidden = torch.tanh(self.i2h(combined))
+        
+        # Compute output
+        output = self.i2o(combined)
+        
+        return output, hidden
+    
+    def init_hidden(self, batch_size):
+        return torch.zeros(batch_size, self.hidden_size)
+
+# Process a sequence
+rnn = SimpleRNN(input_size=10, hidden_size=20, output_size=5)
+sequence_length = 15
+batch_size = 32
+
+hidden = rnn.init_hidden(batch_size)
+for t in range(sequence_length):
+    x_t = torch.randn(batch_size, 10)  # Input at time t
+    output, hidden = rnn(x_t, hidden)
+```
+
+### The Vanishing Gradient Problem
+
+While simple RNNs work in theory, they suffer from the **vanishing gradient problem** when training on long sequences.
+
+**Why it happens:**
+
+During backpropagation through time (BPTT), gradients are propagated backward through the sequence. At each step, they are multiplied by the weight matrix and the derivative of the activation function:
+
+$$
+\frac{\partial L}{\partial h_1} = \frac{\partial L}{\partial h_T} \prod_{t=2}^{T} \frac{\partial h_t}{\partial h_{t-1}}
+$$
+
+For long sequences (large $T$):
+- If the product terms are < 1, gradients **vanish** (approach zero)
+- If the product terms are > 1, gradients **explode** (become very large)
+
+**Consequence:** The network cannot learn long-range dependencies. Information from time step 1 is lost by time step 100.
+
+**Example:** In the sentence "The cat, which we found yesterday in the garden, **was** hungry", the RNN must remember "cat" (singular) over many words to correctly predict "was" (not "were").
+
+### Long Short-Term Memory (LSTM)
+
+LSTMs {cite:ps}`hochreiter1997long` were designed to solve the vanishing gradient problem by introducing a **memory cell** and **gating mechanisms**.
+
+**Key innovation:** Instead of just a hidden state, LSTMs maintain:
+- **Cell state** $c_t$: Long-term memory (flows through time with minimal modifications)
+- **Hidden state** $h_t$: Short-term memory (output of the LSTM)
+
+**Three gates control information flow:**
+
+1. **Forget gate** ($f_t$): What information to discard from cell state
+2. **Input gate** ($i_t$): What new information to add to cell state
+3. **Output gate** ($o_t$): What information to output from cell state
+
+**LSTM equations:**
+
+$$
+\begin{align}
+f_t &= \sigma(W_f \cdot [h_{t-1}, x_t] + b_f) \quad \text{(forget gate)} \\
+i_t &= \sigma(W_i \cdot [h_{t-1}, x_t] + b_i) \quad \text{(input gate)} \\
+\tilde{c}_t &= \tanh(W_c \cdot [h_{t-1}, x_t] + b_c) \quad \text{(candidate values)} \\
+c_t &= f_t \odot c_{t-1} + i_t \odot \tilde{c}_t \quad \text{(update cell state)} \\
+o_t &= \sigma(W_o \cdot [h_{t-1}, x_t] + b_o) \quad \text{(output gate)} \\
+h_t &= o_t \odot \tanh(c_t) \quad \text{(hidden state)}
+\end{align}
+$$
+
+where $\sigma$ is the sigmoid function, $\odot$ is element-wise multiplication, and $[\cdot, \cdot]$ denotes concatenation.
+
+```{figure} images/3_transformers/lstm_cell.jpg
+---
+width: 100%
+name: lstm_cell
+alt: lstm_cell
+---
+LSTM cell showing the three gates and cell state flow. The cell state (top horizontal line) can flow through time with minimal modifications.
+```
+
+**How it solves vanishing gradients:**
+
+The cell state $c_t$ acts as a "highway" for gradients to flow backward through time. The forget gate can learn to keep important information in the cell state for many time steps without modification, allowing gradients to flow without vanishing.
+
+**Intuition through an example:**
+
+Consider processing the sentence "The cat sat on the mat":
+- **Forget gate**: "Should I forget that we're talking about a cat?" → No (keep it)
+- **Input gate**: "Should I add new information about 'sat'?" → Yes (add action)
+- **Output gate**: "Should I output information about the cat?" → Yes (for next word prediction)
+
+**PyTorch implementation:**
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+# Built-in LSTM
+lstm = nn.LSTM(input_size=10, hidden_size=20, num_layers=2, batch_first=True)
+
+# Process sequence
+batch_size = 32
+sequence_length = 15
+input_size = 10
+
+x = torch.randn(batch_size, sequence_length, input_size)
+output, (h_n, c_n) = lstm(x)
+
+# output: (batch_size, sequence_length, hidden_size) - outputs at each time step
+# h_n: (num_layers, batch_size, hidden_size) - final hidden state
+# c_n: (num_layers, batch_size, hidden_size) - final cell state
+```
+
+### Gated Recurrent Unit (GRU)
+
+GRUs {cite:ps}`cho2014learning` are a simplified variant of LSTMs with fewer parameters but similar performance.
+
+**Key differences from LSTM:**
+- **No separate cell state**: Only hidden state $h_t$
+- **Two gates instead of three**: Update gate and reset gate
+- **Fewer parameters**: ~25% fewer than LSTM
+
+**GRU equations:**
+
+$$
+\begin{align}
+z_t &= \sigma(W_z \cdot [h_{t-1}, x_t]) \quad \text{(update gate)} \\
+r_t &= \sigma(W_r \cdot [h_{t-1}, x_t]) \quad \text{(reset gate)} \\
+\tilde{h}_t &= \tanh(W \cdot [r_t \odot h_{t-1}, x_t]) \quad \text{(candidate hidden state)} \\
+h_t &= (1 - z_t) \odot h_{t-1} + z_t \odot \tilde{h}_t \quad \text{(final hidden state)}
+\end{align}
+$$
+
+**Gate functions:**
+- **Reset gate** ($r_t$): Controls how much of the previous hidden state to use when computing the candidate hidden state
+- **Update gate** ($z_t$): Controls how much of the previous hidden state to keep and how much of the candidate to use
+
+```{figure} images/3_transformers/gru_cell.ppm
+---
+width: 100%
+name: gru_cell
+alt: gru_cell
+---
+GRU cell showing the two gates. Simpler than LSTM but often comparable performance.
+```
+
+**PyTorch implementation:**
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+# Built-in GRU
+gru = nn.GRU(input_size=10, hidden_size=20, num_layers=2, batch_first=True)
+
+x = torch.randn(32, 15, 10)  # (batch, sequence, features)
+output, h_n = gru(x)
+```
+
+### LSTM vs GRU: When to Use Which?
+
+| Aspect | LSTM | GRU |
+|--------|------|-----|
+| **Parameters** | More (4 weight matrices) | Fewer (3 weight matrices) |
+| **Training speed** | Slower | Faster (fewer parameters) |
+| **Memory** | Higher (stores cell state) | Lower |
+| **Performance** | Slightly better on complex tasks | Comparable on most tasks |
+| **Long sequences** | Better at very long dependencies | Good for moderate-length sequences |
+
+**Rule of thumb:**
+- Start with **GRU** (simpler, faster, fewer hyperparameters)
+- Switch to **LSTM** if you need to model very long-range dependencies
+- In practice, the difference is often small
+
+### Why Transformers Replaced RNNs/LSTMs/GRUs
+
+Despite solving the vanishing gradient problem, LSTMs and GRUs still have fundamental limitations:
+
+**1. Sequential Processing Bottleneck**
+```
+RNN/LSTM/GRU: h₁ → h₂ → h₃ → h₄ → h₅
+               ↓    ↓    ↓    ↓    ↓
+              Cannot parallelize!
+
+Transformer:   All positions processed simultaneously
+               ↓
+              Full parallelization!
+```
+
+**2. Limited Context Window**
+
+Even with LSTMs/GRUs, information from very distant positions is diluted. A 1000-word document requires 1000 sequential steps, with information potentially degrading over that distance.
+
+**3. Difficulty in Learning Which Positions Matter**
+
+RNNs treat all previous positions equally (through the hidden state). Transformers use attention to explicitly learn which positions are important for each prediction.
+
+**Comparison Summary:**
+
+| Feature | RNN/LSTM/GRU | Transformer |
+|---------|--------------|-------------|
+| **Parallelization** | No (sequential) | Yes (all positions at once) |
+| **Training speed** | Slow for long sequences | Fast (with sufficient hardware) |
+| **Long-range dependencies** | Challenging despite gates | Natural through attention |
+| **Interpretability** | Hidden state (opaque) | Attention weights (interpretable) |
+| **Memory complexity** | O(n) | O(n²) (due to attention) |
+
+**When RNNs are still relevant:**
+- Very long sequences where O(n²) attention is prohibitive
+- Streaming applications (processing unbounded sequences online)
+- Extremely limited computational resources
+- Specific domains where sequential inductive bias helps
+
+However, for most modern applications, transformers have become the default choice due to their superior performance and parallelization capabilities.
+
+**Images Needed for This Section:**
+
+To fully illustrate the RNN concepts, please add the following images to `images/3_transformers/`:
+
+1. **rnn_unrolled.png**: Diagram showing an RNN unrolled through time (3-4 time steps), with the same weights $W$ applied at each step, showing how $h_t$ flows through time
+2. **lstm_cell.png**: Detailed LSTM cell diagram showing the cell state (horizontal line at top), three gates (forget, input, output) with sigmoid activations, tanh activations, and element-wise operations (×, +)
+3. **gru_cell.png**: GRU cell diagram showing update gate and reset gate, how they control information flow, and the simpler structure compared to LSTM
+
+You can find good reference diagrams at [Colah's blog on LSTMs](http://colah.github.io/posts/2015-08-Understanding-LSTMs/) or create simple diagrams showing the flow of information.
+
+````
 
 ```{figure} images/3_transformers/architecture.webp
 ---
@@ -146,6 +468,17 @@ Embedding layer as a lookup table. Image source [lena-voita](https://lena-voita.
 
 After the embedding layer, the input sequence is converted into a sequence of vector embeddings. As we can see later, the attention mechanism, at the core of the transformer architecture, does not take into account the position of each element of the sequence. To inject this information into the model, we use a technique called *positional encoding*.
 
+### Why is Positional Encoding Needed?
+
+The attention mechanism treats the input as a **set**, not a **sequence**. If we shuffle the input tokens, the attention output remains the same (ignoring the learned parameters). However, for most tasks, **order matters**:
+- In text: "dog bites man" vs "man bites dog"
+- In audio: the temporal order of sounds
+- In video: the sequence of frames
+
+Positional encoding solves this by adding position information to each token's embedding, making the input order-aware.
+
+### Sinusoidal Positional Encoding
+
 There are different implementations of positional encoding. The traditional implementation is based on sinusoidal functions. For each position $i$ of the input sequence, we compute a vector $PE_i$ of the same size as the embeddings. The vector $PE_i$ is then added to the embeddings $x_i$ to produce the final embeddings $x_i + PE_i$.
 
 **How can we compute the vector $PE_i$?** The vector $PE_i$ is computed using a combination of sinusoidal functions. We define a set of frequencies $f$ and compute the vector $PE_i$ as follows:
@@ -157,6 +490,25 @@ where $d$ is the size of the embeddings. The frequencies $f$ are computed as fol
 $$f_i = \frac{1}{10000^{2i/d}}$$
 
 The frequencies $f$ are computed using a geometric progression. The first frequency is $f_1 = 1/10000^{2 \times 1/d}$, the second frequency is $f_2 = 1/10000^{2 \times 2/d}$, and so on. The frequencies are then used to compute the vector $PE_i$. $d$ is the size of the embeddings. The vector $PE_i$ is then added to the embeddings $x_i$ to produce the vector $x_i + PE_i$ that will be the input of the network.
+
+**Why sinusoidal functions?**
+
+1. **Unique encoding**: Different positions get different patterns of sine and cosine values
+2. **Smooth transitions**: Nearby positions have similar encodings
+3. **Extrapolation**: The model can potentially generalize to sequence lengths not seen during training
+4. **Relative positions**: For any fixed offset $k$, $PE_{pos+k}$ can be represented as a linear function of $PE_{pos}$, making it easier for the model to learn relative positions
+
+**Alternative: Learned Positional Embeddings**
+
+Instead of fixed sinusoidal encodings, some models learn positional embeddings:
+```python
+self.pos_embedding = nn.Embedding(max_seq_length, embedding_dim)
+```
+
+This approach:
+- Can learn task-specific position representations
+- Limited to sequences shorter than or equal to max_seq_length seen during training
+- Used in BERT and many other models
 
 
 ```{figure} images/3_transformers/transformer_positional_encoding_example.png
@@ -175,6 +527,65 @@ Positional encoding example. Image source [illustrated-transformer](http://jalam
 ## Attention Mechanism
 
 At this point of the chapter, we have converted the input sequence into a sequence of vector embeddings. The next step is to process the embeddings using the attention mechanism. The attention mechanism is the core of the transformer architecture. It is used to learn the relationships between the different elements of the sequence.
+
+### Understanding Attention: A Concrete Example
+
+Before diving into the mathematical formulation, let us understand attention with a simple numerical example. Consider a sequence of 3 words with embedding size 4:
+
+Input embeddings (simplified for illustration):
+```
+Word 1: [1.0, 0.5, 0.2, 0.8]
+Word 2: [0.3, 0.9, 0.6, 0.4]
+Word 3: [0.7, 0.2, 0.9, 0.3]
+```
+
+For each word, we want to compute a new representation that considers information from all other words. Let us focus on computing the new representation for Word 1.
+
+**Step 1: Compute Query, Key, Value**
+
+For simplicity, assume our learned linear transformations are identity matrices (in practice, these are learned):
+```
+Q1 (query for word 1) = [1.0, 0.5, 0.2, 0.8]
+K1 (key for word 1) = [1.0, 0.5, 0.2, 0.8]
+K2 (key for word 2) = [0.3, 0.9, 0.6, 0.4]
+K3 (key for word 3) = [0.7, 0.2, 0.9, 0.3]
+
+V1 (value for word 1) = [1.0, 0.5, 0.2, 0.8]
+V2 (value for word 2) = [0.3, 0.9, 0.6, 0.4]
+V3 (value for word 3) = [0.7, 0.2, 0.9, 0.3]
+```
+
+**Step 2: Compute Attention Scores**
+
+Compute dot product between Q1 and all keys:
+```
+Score(Q1, K1) = 1.0*1.0 + 0.5*0.5 + 0.2*0.2 + 0.8*0.8 = 1.93
+Score(Q1, K2) = 1.0*0.3 + 0.5*0.9 + 0.2*0.6 + 0.8*0.4 = 1.19
+Score(Q1, K3) = 1.0*0.7 + 0.5*0.2 + 0.2*0.9 + 0.8*0.3 = 1.22
+```
+
+**Step 3: Apply Softmax**
+
+Normalize scores to get attention weights (scaled by 1/√4 = 0.5 in practice):
+```
+Before softmax: [1.93, 1.19, 1.22]
+After softmax: [0.51, 0.24, 0.25]  (approximately)
+```
+
+Interpretation: Word 1 should pay 51% attention to itself, 24% to Word 2, and 25% to Word 3.
+
+**Step 4: Compute Weighted Sum**
+
+Combine values using attention weights:
+```
+Output1 = 0.51 * V1 + 0.24 * V2 + 0.25 * V3
+        = 0.51 * [1.0, 0.5, 0.2, 0.8] + 0.24 * [0.3, 0.9, 0.6, 0.4] + 0.25 * [0.7, 0.2, 0.9, 0.3]
+        = [0.76, 0.52, 0.47, 0.65]
+```
+
+The new representation for Word 1 is a weighted combination of all words, where the weights reflect their relevance.
+
+### Formal Definition
 
 The attention mechanism is a mechanism that allows the model to learn the relationships between the different elements of the sequence. the process can be divided into three steps:
 1. **Query, Key, and Value**. The input embeddings are first *split* into three vectors: the query vector, the key vector, and the value vector. 
@@ -207,6 +618,13 @@ $$
 
 where $Q$ is the query vector, $K$ is the key vector, $V$ is the value vector, and $d_k$ is the size of the key vector. $\sqrt{d_k}$ is used to scale the dot product between $Q$ and $K$. The softmax function is applied to each row of the matrix $QK^T$ to produce a probability distribution over all the elements of the sequence. The probability distribution is then used to compute a weighted average of the value vector $V$.
 The formula above is the *matrix form* of the attention mechanism.
+
+**Why scale by √d_k?** Without scaling, for large embedding dimensions, the dot products can become very large, pushing the softmax into regions with extremely small gradients. Scaling by $\sqrt{d_k}$ keeps the variance of the dot products stable regardless of the embedding dimension, ensuring better gradient flow during training.
+
+**Computational complexity:** For a sequence of length $n$ and embedding dimension $d$:
+- Computing $QK^T$: $O(n^2 d)$ - quadratic in sequence length
+- This is the main bottleneck for very long sequences
+- Various efficient attention mechanisms (sparse attention, linear attention) have been proposed to address this
 
 Each element of the sequence is processed independently by the attention mechanism. This means that the attention mechanism can be computed in parallel for all the elements of the sequence. This is one of the reasons why transformers are faster than RNNs on modern hardware (e.g., GPUs).
 
@@ -569,5 +987,131 @@ The number of layers is a **hyperparameter** of the model. The number of layers 
 In this chapter, we have seen all the components behind one of the most popular deep learning architectures: the transformer (encoder decoder) and its encoder-only and decoder-only variants. We have seen how to implement the different components of the transformer architecture in pure PyTorch.
 
 This architecture has basically revolutionized the field of deep learning. It has been used in many different domains (e.g., NLP, audio, images, multi-modal data, etc.) and has achieved state-of-the-art results in many different tasks (e.g., speech recognition, machine translation, image classification, etc.).
+
+## Vision Transformers (ViT): Transformers for Images
+
+While transformers were originally designed for sequential data like text, the **Vision Transformer (ViT)** {cite:ps}`dosovitskiy2020image` demonstrated that transformers can also work exceptionally well for images by treating images as sequences of patches.
+
+### How ViT Works
+
+**1. Image Patchification**
+
+Instead of processing individual pixels, ViT divides the image into fixed-size patches:
+
+```
+Image: 224 x 224 x 3 (RGB)
+Patch size: 16 x 16
+Number of patches: (224/16) x (224/16) = 14 x 14 = 196 patches
+```
+
+Each 16x16x3 patch is flattened into a vector of size 768 (16 × 16 × 3 = 768).
+
+**2. Linear Projection**
+
+Each flattened patch is linearly projected to the embedding dimension (e.g., 768):
+```python
+self.patch_embedding = nn.Linear(patch_size * patch_size * 3, embedding_dim)
+```
+
+**3. Add Position Embeddings**
+
+Since transformers don't inherently understand spatial relationships, we add learnable position embeddings to each patch embedding:
+```python
+self.position_embedding = nn.Parameter(torch.randn(1, num_patches + 1, embedding_dim))
+```
+
+**4. Add Class Token**
+
+A special learnable [CLS] token is prepended to the sequence. After processing through transformer layers, this token's representation is used for classification:
+```python
+self.cls_token = nn.Parameter(torch.randn(1, 1, embedding_dim))
+```
+
+**5. Transformer Encoder**
+
+The sequence of patch embeddings (including the [CLS] token) is processed by standard transformer encoder layers.
+
+**6. Classification Head**
+
+The output corresponding to the [CLS] token is passed through a classification head:
+```python
+self.mlp_head = nn.Linear(embedding_dim, num_classes)
+```
+
+### ViT Architecture Summary
+
+```{code-block} python
+class VisionTransformer(nn.Module):
+    def __init__(self, image_size=224, patch_size=16, num_classes=1000,
+                 embedding_dim=768, num_layers=12, num_heads=12):
+        super().__init__()
+        num_patches = (image_size // patch_size) ** 2
+        patch_dim = 3 * patch_size * patch_size
+        
+        # Patch embedding
+        self.patch_embedding = nn.Linear(patch_dim, embedding_dim)
+        
+        # CLS token and position embeddings
+        self.cls_token = nn.Parameter(torch.randn(1, 1, embedding_dim))
+        self.position_embedding = nn.Parameter(torch.randn(1, num_patches + 1, embedding_dim))
+        
+        # Transformer encoder
+        self.transformer = nn.TransformerEncoder(
+            nn.TransformerEncoderLayer(d_model=embedding_dim, nhead=num_heads),
+            num_layers=num_layers
+        )
+        
+        # Classification head
+        self.mlp_head = nn.Linear(embedding_dim, num_classes)
+        
+    def forward(self, x):
+        # x shape: (batch, 3, 224, 224)
+        batch_size = x.shape[0]
+        
+        # Split into patches and flatten
+        # x shape: (batch, num_patches, patch_dim)
+        x = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=16, p2=16)
+        
+        # Linear projection
+        x = self.patch_embedding(x)  # (batch, num_patches, embedding_dim)
+        
+        # Add CLS token
+        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+        x = torch.cat([cls_tokens, x], dim=1)  # (batch, num_patches + 1, embedding_dim)
+        
+        # Add position embeddings
+        x = x + self.position_embedding
+        
+        # Transformer encoder
+        x = self.transformer(x)
+        
+        # Classification (use CLS token)
+        cls_output = x[:, 0]  # (batch, embedding_dim)
+        return self.mlp_head(cls_output)  # (batch, num_classes)
+```
+
+### ViT vs CNNs
+
+**Advantages of ViT:**
+- **Global receptive field**: Every patch can attend to every other patch from the first layer
+- **Scalability**: Performance improves consistently with more data and larger models
+- **Flexibility**: Same architecture works across different vision tasks
+- **Interpretability**: Attention weights show which patches the model focuses on
+
+**Disadvantages:**
+- **Data hungry**: Requires large datasets (ImageNet-21k or JFT-300M) for good performance
+- **Lack of inductive bias**: CNNs have built-in translation equivariance; ViTs must learn this from data
+- **Computational cost**: Quadratic complexity in number of patches
+
+**Hybrid approaches:** Models like Swin Transformer combine the best of both worlds, using shifted windows to limit attention computation while maintaining hierarchical feature learning like CNNs.
+
+### When to Use ViT
+
+- **Large datasets available**: ViT excels when you have millions of training images
+- **Transfer learning**: Pre-trained ViT models work very well for fine-tuning on smaller datasets
+- **Need global context**: Tasks requiring understanding of relationships across the entire image
+- **Unified architecture**: Want to use the same model architecture across vision and language tasks
+
+**For smaller datasets:** Consider using CNNs or hybrid architectures, or use heavily pre-trained ViT models with careful fine-tuning.
 
 In the next chapter, we will get our hands dirty and we will see how to use the transformer architecture in practice, both starting from scratch and using pre-trained models.

@@ -1,1 +1,3 @@
 DL4SV_book/data/*
+# MyST build outputs
+_build

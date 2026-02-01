@@ -1,0 +1,17 @@
+# Core deep learning
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Data handling and visualization
+numpy
+pandas
+matplotlib
+scikit-learn
+Pillow
+
+# Development tools
+tqdm  # Progress bars
+comet_ml # Experiment tracking (optional)
+yaml_config_manager
+

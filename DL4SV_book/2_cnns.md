@@ -29,8 +29,43 @@ The MNIST dataset
 
 Images are a special type of data that are characterized by three properties:
 - **High dimensionality**: images are represented as a matrix of pixels, where each pixel is a value between 0 and 255. For example, a 224x224 RGB image is represented as a 224x224x3 matrix ($224 \times 224 \times 3 = 150528$).
-- **Spatial correlation**: neaby pixel in an image are correlated. For example, in a picture of a cat, the pixels that represent the cat's fur are likely to be similar.
+- **Spatial correlation**: nearby pixels in an image are correlated. For example, in a picture of a cat, the pixels that represent the cat's fur are likely to be similar.
 - **Invariance to geometric transformations**: the content of an image is invariant to geometric transformations such as translation, rotation, and scaling. For example, a picture of a cat is still a picture of a cat if we rotate it by 90 degrees.
+
+### Why Fully Connected Networks Fail for Images
+
+Let us understand why these properties make it really difficult to use a fully connected neural network to process images through concrete examples:
+
+**1. High Dimensionality Problem**
+
+Consider a modest 224x224 RGB image:
+- Input size: $224 \times 224 \times 3 = 150,528$ pixels
+- If the first hidden layer has 1000 neurons: $150,528 \times 1,000 = 150,528,000$ weights
+- If we add a second hidden layer with 1000 neurons: $1,000 \times 1,000 = 1,000,000$ more weights
+- **Total**: Over 151 million parameters for just two layers
+
+This leads to:
+- Enormous memory requirements
+- Very slow training
+- High risk of overfitting (more parameters than training examples)
+- Computationally infeasible for larger images
+
+**2. Spatial Correlation Not Exploited**
+
+In a fully connected network, a neuron connected to pixel (10, 10) and pixel (200, 200) treats them equally, even though:
+- Pixel (10, 10) and pixel (11, 11) are adjacent and likely represent the same object
+- Pixel (10, 10) and pixel (200, 200) are far apart and likely represent different objects
+
+This means the network cannot leverage the spatial structure of images, wasting learning capacity on irrelevant connections.
+
+**3. No Translation Invariance**
+
+Suppose the network learns to recognize a cat in the center of an image. If the same cat appears in the top-left corner, the fully connected network sees completely different input values and must learn to recognize the cat again. The network needs to learn the same pattern for every possible position, which is inefficient.
+
+**The CNN Solution:**
+- **Convolution** reduces parameters by using shared weights (same filter applied everywhere)
+- **Local connections** exploit spatial correlation (filters only look at nearby pixels)
+- **Pooling** provides translation invariance (small shifts don't change the output much)
 
 Those properties are directly related to the fact that is really difficult to use a fully connected neural network to process images. 
 - The high dimensionality of images makes the training of a fully connected neural network infeasible. Even a shallow network receiving as input a 224x224 RGB image would have 150528 input units in the first layer. This number would increase exponentially with the number of layers (2 layers $150528^2$, 3 layers $150528^3$, etc.).
@@ -256,6 +291,70 @@ The **stride** instead is used to control the reduction of the spatial dimension
 
 ```
 
+### Data Augmentation
+
+Data augmentation is a technique to artificially increase the size and diversity of the training dataset by applying transformations to existing images. This is one of the most effective techniques to prevent overfitting and improve model generalization.
+
+**Common image augmentation techniques:**
+
+1. **Geometric transformations:**
+   - **Rotation**: Rotate the image by a random angle (e.g., -15 to +15 degrees)
+   - **Horizontal/Vertical flip**: Mirror the image
+   - **Translation**: Shift the image horizontally or vertically
+   - **Scaling**: Zoom in or out
+   - **Shearing**: Slant the image
+
+2. **Color transformations:**
+   - **Brightness adjustment**: Make the image lighter or darker
+   - **Contrast adjustment**: Increase or decrease the difference between light and dark pixels
+   - **Saturation adjustment**: Make colors more or less vivid
+   - **Hue adjustment**: Shift colors (e.g., make red more orange)
+
+3. **Noise and blur:**
+   - **Gaussian noise**: Add random noise to pixels
+   - **Gaussian blur**: Blur the image
+   - **Dropout**: Randomly set some pixels to zero
+
+**Implementation in PyTorch:**
+
+```{code-block} python
+import torchvision.transforms as transforms
+
+# Define augmentation pipeline
+train_transform = transforms.Compose([
+    transforms.RandomRotation(degrees=15),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+    transforms.RandomResizedCrop(size=224, scale=(0.8, 1.0)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# For validation/test: only resize and normalize, no augmentation
+val_transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+```
+
+**When to use augmentation:**
+- Apply augmentation only to the **training set**
+- Do not apply augmentation to validation or test sets
+- Use transformations that preserve the semantic content (e.g., a horizontally flipped cat is still a cat)
+
+**Benefits:**
+- Reduces overfitting by increasing training data diversity
+- Improves model robustness to variations
+- Often provides 2-5% accuracy improvement
+- Allows training with smaller datasets
+
+```{admonition} Common Pitfall
+:class: warning
+Be careful with data augmentation for certain tasks. For example, horizontal flipping might not be appropriate for text recognition (flipped text is not readable) or medical imaging (left/right orientation matters).
+```
+
 <!-- ### Activation Functions
 
 The activation function is a non-linear function that is applied to the output of a layer. The activation function is usually applied after the convolutional and pooling layers. Similarly to fully connected neural networks, the activation function is used to introduce non-linearity in the network. The most common activation functions are:
@@ -282,6 +381,98 @@ Example of receptive field in a CNN.
 {numref}`receptive_field` shows an example of receptive field in a CNN. The receptive field of the neuron in the third layer is 3x3 when considering the second layer. If we consider the input image (e.g., layer 1), the receptive field of the same neuron would be 9x9 (the entire image is 5x5 so the neuron can "see" the whole image).
 
 Intuitively, the receptive field defines the region of the input image that has contributed to the activation of a neuron in the network.
+
+## Transfer Learning
+
+Transfer learning is one of the most powerful techniques in deep learning. Instead of training a model from scratch, we start with a model pre-trained on a large dataset and adapt it to our specific task.
+
+### Why Transfer Learning Works
+
+**The key insight:** CNNs learn hierarchical features that are often transferable across tasks:
+- **Lower layers** learn general features (edges, textures, colors)
+- **Middle layers** learn more specific patterns (shapes, parts)
+- **Higher layers** learn task-specific features (full objects, scenes)
+
+Since lower layers learn general features, they can be reused across different tasks. For example, edge detectors learned on ImageNet are useful for medical imaging, satellite imagery, or any other vision task.
+
+### Transfer Learning Strategies
+
+**1. Feature Extraction (Frozen Base)**
+
+- Use a pre-trained model as a fixed feature extractor
+- Freeze all layers except the final classification layer
+- Only train the new classification head
+- **Use when:** You have a small dataset (< 10,000 images)
+
+```{code-block} python
+import torch
+import torch.nn as nn
+from torchvision import models
+
+# Load pre-trained ResNet
+model = models.resnet50(pretrained=True)
+
+# Freeze all layers
+for param in model.parameters():
+    param.requires_grad = False
+
+# Replace the final layer
+num_classes = 10  # Your number of classes
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+
+# Only the final layer will be trained
+optimizer = torch.optim.Adam(model.fc.parameters(), lr=0.001)
+```
+
+**2. Fine-Tuning**
+
+- Start with a pre-trained model
+- Unfreeze some or all layers
+- Train with a small learning rate to avoid destroying pre-trained weights
+- **Use when:** You have a medium-sized dataset (10,000-100,000 images)
+
+```{code-block} python
+import torch
+import torch.nn as nn
+from torchvision import models
+
+# Load pre-trained model
+model = models.resnet50(pretrained=True)
+
+# Replace final layer
+model.fc = nn.Linear(model.fc.in_features, num_classes)
+
+# Fine-tune: use different learning rates for different layers
+optimizer = torch.optim.Adam([
+    {'params': model.layer4.parameters(), 'lr': 1e-4},  # Last conv block
+    {'params': model.fc.parameters(), 'lr': 1e-3}       # New classifier
+], lr=1e-4)
+```
+
+**3. Training from Scratch**
+
+- Initialize weights randomly
+- Train all layers from the beginning
+- **Use when:** You have a very large dataset (> 1,000,000 images) or a very different domain
+
+### Best Practices for Transfer Learning
+
+1. **Start with feature extraction**, then move to fine-tuning if needed
+2. **Use lower learning rates** when fine-tuning (typically 10-100x smaller than training from scratch)
+3. **Fine-tune in stages**: Unfreeze layers gradually from top to bottom
+4. **Monitor validation performance**: Stop unfreezing if performance degrades
+5. **Data normalization**: Use the same normalization as the pre-trained model (usually ImageNet statistics)
+
+```{code-block} python
+# ImageNet normalization
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                       std=[0.229, 0.224, 0.225])
+])
+```
 
 ## Common CNN Architectures
 
@@ -357,6 +548,32 @@ Residual learning.
 Many other CNN architectures have been proposed in the last years. Here are some references if the reader is interested in learning more about CNN architectures:
 - VGG {cite:ps}`simonyan2014very`, introduced the concept of using small convolutional filters (3x3) with stride 1 and padding 1.
 - DenseNet {cite:ps}`huang2017densely`, introduced the concept of dense blocks, where each layer is connected to all the previous layers.
+
+### Comparison of CNN Architectures
+
+The following table compares the main characteristics of the most popular CNN architectures:
+
+| Architecture | Year | Depth | Parameters | Top-1 Accuracy (ImageNet) | Key Innovation |
+|--------------|------|-------|------------|---------------------------|----------------|
+| LeNet-5 | 1998 | 5 | ~60K | N/A | First successful CNN |
+| AlexNet | 2012 | 8 | 61M | 63.3% | ReLU, dropout, GPU training |
+| VGG-16 | 2014 | 16 | 138M | 71.3% | Deep network with small 3x3 filters |
+| ResNet-50 | 2015 | 50 | 25M | 76.0% | Residual connections enable very deep networks |
+| ResNet-152 | 2015 | 152 | 60M | 77.6% | Extremely deep (152 layers) |
+| DenseNet-121 | 2017 | 121 | 8M | 74.9% | Dense connections between all layers |
+| EfficientNet-B7 | 2019 | Varies | 66M | 84.3% | Compound scaling (depth, width, resolution) |
+
+**Guidelines for choosing an architecture:**
+
+- **LeNet**: Educational purposes, very simple datasets
+- **AlexNet**: Historical interest, not used in practice anymore
+- **VGG**: Simple architecture (only 3x3 convolutions), good for understanding CNNs, but many parameters
+- **ResNet**: Excellent all-around choice, residual connections prevent vanishing gradients, widely used
+- **DenseNet**: Very parameter-efficient, good performance, but high memory usage during training
+- **EfficientNet**: Best accuracy-to-parameters ratio, excellent for deployment where both accuracy and efficiency matter
+- **MobileNet** (not in table): Lightweight, optimized for mobile and edge devices
+
+**For transfer learning:** ResNet-50 or EfficientNet-B0 are recommended starting points for most tasks.
 - Inception {cite:ps}`szegedy2015going`, introduced the concept of inception modules, where the input is processed by different convolutional filters and the output is concatenated.
 - MobileNet {cite:ps}`howard2017mobilenets`, introduced the concept of depthwise separable convolution, where the convolution operation is split into two separate operations: depthwise convolution and pointwise convolution.
 - EfficientNet {cite:ps}`tan2019efficientnet`, introduced the concept of compound scaling, where the depth, width, and resolution of the network are scaled together.

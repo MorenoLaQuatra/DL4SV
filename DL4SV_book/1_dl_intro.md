@@ -7,6 +7,26 @@ This chapter is by no means a complete introduction to deep learning. It is just
 > Deep learning allows computational models that are composed of multiple processing layers to learn representations of data with multiple levels of abstraction. 
 {cite:ps}`lecun2015deep`
 
+## Why Deep Learning for Speech and Vision?
+
+Before diving into the technical details, it is important to understand why deep learning has become the dominant approach for speech and vision tasks.
+
+**Traditional approaches** relied on hand-crafted features. For example, in computer vision, researchers would manually design filters to detect edges, corners, and textures. In speech processing, features like MFCCs (Mel-Frequency Cepstral Coefficients) were carefully engineered based on domain knowledge. While these approaches worked reasonably well, they had several limitations:
+
+- **Manual feature engineering** requires extensive domain expertise and is time-consuming
+- **Features may not be optimal** for the specific task at hand
+- **Difficult to adapt** to new domains or tasks
+- **Limited capacity** to capture complex patterns in data
+
+Deep learning addresses these limitations by **automatically learning features** from raw or minimally processed data. Instead of designing features manually, we design the architecture and let the network learn the most useful representations through training.
+
+**Why does this work?** Deep learning models with multiple layers can learn hierarchical representations:
+- **Lower layers** learn simple patterns (edges, basic sounds)
+- **Middle layers** combine simple patterns into more complex ones (shapes, phonemes)
+- **Higher layers** learn abstract concepts (objects, words)
+
+This hierarchical learning is particularly powerful for speech and vision because these domains naturally have this kind of structure. An image contains edges that form shapes that form objects. Speech contains phonemes that form syllables that form words.
+
 ## What is Deep Learning?
 
 Deep Learning is a subfield of Machine Learning that involves the design, training, and evaluation of deep neural networks. While the term "deep" is not formally defined, it is generally used to refer to neural networks with more than one hidden layer.
@@ -45,6 +65,23 @@ alt: deep_nn
 
 Similarly to the *shallow* case, the information flows from the input layer to the output layer without any feedback connections. Also, the network is fully-connected.
 
+### Why "Deep" Matters: A Concrete Example
+
+To understand why depth is important, consider a simple task: detecting a face in an image.
+
+**Shallow network approach:**
+- The network must learn to recognize faces directly from raw pixels
+- It needs to learn all possible variations (different poses, lighting, expressions) in a single step
+- This requires an enormous number of parameters and training examples
+
+**Deep network approach:**
+- **Layer 1**: Learns to detect edges (horizontal, vertical, diagonal)
+- **Layer 2**: Combines edges into simple shapes (circles, rectangles)
+- **Layer 3**: Combines shapes into facial features (eyes, nose, mouth)
+- **Layer 4**: Combines features into face patterns
+
+Each layer builds on the previous one, making the learning task easier at each step. This is the key insight behind deep learning: **complex functions can be more efficiently represented by composing simpler functions**.
+
 ```{admonition} Exercise: How many connections?
 :class: tip, dropdown
 What is the number of connections in a fully-connected neural network with $n$ input neurons, $m$ hidden neurons, and $k$ output neurons?
@@ -64,6 +101,17 @@ What about the example in the figures above? How many connections are there in t
 ```
 
 # Supervised Learning
+
+```{admonition} Learning Objectives
+:class: learning-objectives
+By the end of this section, you will understand:
+- The difference between supervised, unsupervised, and reinforcement learning
+- How to formulate a supervised learning problem
+- The role of loss functions in training neural networks
+- The optimization process using gradient descent and backpropagation
+- How to split data into training, validation, and test sets
+- Common evaluation metrics for classification and regression tasks
+```
 
 Deep learning models need to be *trained* on a collection of data to learn a specific task. The training process is based on the *learning paradigm* used to train the model. There are three main learning paradigms:
 - **Supervised learning** the training data is composed of input-output pairs. The goal of the model is to learn a function that maps the input to the output.
@@ -265,6 +313,24 @@ Gradients of the loss function with respect to the weights are crucial for the b
 One problem during the training process is the **vanishing gradient**. The vanishing gradient problem occurs when the gradient of the activation function is close to zero. In this case, the weights are not updated during the training process. Similarly, the **exploding gradient** problem occurs when the gradient of the activation function is very large. In this case, the weights are updated too much during the training process.
 The choice of the activation function could mitigate those problems.
 
+### Weight Initialization
+
+Before training a neural network, we need to initialize the weights. Random initialization is necessary to break symmetry (if all weights are the same, all neurons would learn the same function). However, the way we initialize weights significantly affects training.
+
+**Common initialization strategies:**
+
+- **Xavier (Glorot) initialization**: Designed for sigmoid and tanh activations. Weights are initialized from a distribution with variance $\text{Var}(w) = \frac{2}{n_{in} + n_{out}}$ where $n_{in}$ is the number of input units and $n_{out}$ is the number of output units.
+
+- **He initialization**: Designed for ReLU activations. Weights are initialized from a distribution with variance $\text{Var}(w) = \frac{2}{n_{in}}$.
+
+**Why does initialization matter?** Poor initialization can lead to:
+- Vanishing gradients (weights too small)
+- Exploding gradients (weights too large)
+- Slow convergence
+- Getting stuck in poor local minima
+
+Modern deep learning frameworks (like PyTorch) use appropriate initialization by default, but understanding this concept is important when designing custom layers or debugging training issues.
+
 ### Optimization of a complex model
 
 In deep learning:
@@ -285,6 +351,95 @@ alt: training_batch
 Training process with mini-batch. A complete iteration over the training data is called **epoch**.
 ```
 
+## Overfitting and Regularization
+
+One of the most important challenges in deep learning is **overfitting**. Overfitting occurs when a model learns the training data too well, including its noise and peculiarities, and fails to generalize to unseen data.
+
+**Signs of overfitting:**
+- Training loss continues to decrease while validation loss increases
+- High accuracy on training data but poor accuracy on validation/test data
+- Model memorizes training examples instead of learning general patterns
+
+### Regularization Techniques
+
+Regularization techniques help prevent overfitting by constraining the model during training:
+
+**1. L1 and L2 Regularization**
+
+Add a penalty term to the loss function based on the magnitude of weights:
+
+- **L2 regularization (weight decay)**: $\mathcal{L}_{total} = \mathcal{L} + \lambda \sum_i w_i^2$
+  - Encourages small weights
+  - Most commonly used
+  - Implemented as weight decay in optimizers
+
+- **L1 regularization**: $\mathcal{L}_{total} = \mathcal{L} + \lambda \sum_i |w_i|$
+  - Encourages sparse weights (many weights become exactly zero)
+  - Useful for feature selection
+
+**2. Dropout**
+
+During training, randomly "drop" (set to zero) a fraction of neurons with probability $p$ (typically 0.2 to 0.5). This forces the network to learn redundant representations and prevents co-adaptation of neurons.
+
+```python
+import torch.nn as nn
+
+# During training
+x = nn.Dropout(p=0.5)(x)  # 50% of neurons are randomly set to zero
+
+# During evaluation
+model.eval()  # Dropout is automatically disabled
+```
+
+**3. Early Stopping**
+
+Stop training when validation performance stops improving, even if training loss is still decreasing. This prevents the model from overfitting to the training data.
+
+**4. Data Augmentation**
+
+Artificially increase the size of the training dataset by applying transformations (for images: rotation, flipping, cropping; for audio: time stretching, pitch shifting). This helps the model learn invariances and reduces overfitting.
+
+### Batch Normalization
+
+**Batch Normalization** is a technique that normalizes the inputs of each layer, making training faster and more stable. For a mini-batch, it normalizes each feature to have mean 0 and variance 1:
+
+$$
+\hat{x}_i = \frac{x_i - \mu_B}{\sqrt{\sigma_B^2 + \epsilon}}
+$$
+
+where $\mu_B$ is the batch mean, $\sigma_B^2$ is the batch variance, and $\epsilon$ is a small constant for numerical stability.
+
+**Benefits of Batch Normalization:**
+- **Faster training**: allows higher learning rates
+- **Reduces sensitivity** to initialization
+- **Acts as regularization**: reduces the need for dropout
+- **Stabilizes training**: reduces internal covariate shift
+
+**Where to apply:** Typically applied after linear/convolutional layers and before activation functions.
+
+```python
+import torch.nn as nn
+
+class SimpleNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(784, 256)
+        self.bn1 = nn.BatchNorm1d(256)  # Batch normalization
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(256, 10)
+    
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.bn1(x)  # Normalize before activation
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
+```
+
+```{admonition} Common Pitfall
+:class: warning
+Batch normalization behaves differently during training and evaluation. During training, it uses batch statistics. During evaluation, it uses running averages computed during training. Always remember to switch between `model.train()` and `model.eval()` modes.
+```
 
 ## Training and Validation
 
@@ -419,8 +574,77 @@ print(f'F1-score: {f1}')
 
 Many other evaluation metrics are available for regression problems. For example, the [mean absolute percentage error (MAPE)](https://en.wikipedia.org/wiki/Mean_absolute_percentage_error) is commonly used to evaluate regression models.
 
+## Computational Considerations
+
+When working with deep learning models, computational resources are a critical consideration. Understanding these concepts helps you design efficient experiments and manage resources effectively.
+
+### GPU vs CPU Training
+
+**Why use GPUs?** Deep learning involves many matrix operations that can be parallelized. GPUs have thousands of cores optimized for parallel computation, making them much faster than CPUs for training neural networks.
+
+**Speed comparison:** A typical GPU can be 10-100x faster than a CPU for training deep neural networks, depending on the model size and batch size.
+
+**Memory considerations:**
+- **Model parameters**: The weights of the neural network (e.g., a model with 100M parameters using 32-bit floats requires ~400MB)
+- **Activations**: Intermediate values computed during forward pass (depends on batch size and model architecture)
+- **Gradients**: Same size as parameters, stored during backpropagation
+- **Optimizer state**: Optimizers like Adam store additional information (momentum, variance) for each parameter
+
+**Rule of thumb:** Total GPU memory needed is roughly: $\text{memory} \approx 4 \times \text{model size} \times \text{batch size}$
+
+### Batch Size Considerations
+
+**Larger batch sizes:**
+- More memory required
+- Faster training (better GPU utilization)
+- May lead to worse generalization (sharp minima)
+- More stable gradients
+
+**Smaller batch sizes:**
+- Less memory required
+- Slower training
+- May lead to better generalization (flat minima)
+- Noisier gradients (can help escape local minima)
+
+**Common practice:** Start with the largest batch size that fits in memory, then reduce if needed.
+
+### Training Time Estimation
+
+To estimate training time:
+
+1. Measure time per batch on your hardware
+2. Calculate: $\text{time} = \text{time per batch} \times \text{batches per epoch} \times \text{epochs}$
+3. Add overhead for validation and checkpointing
+
+**Example:** For a dataset with 50,000 samples, batch size 32, and 100 epochs:
+- Batches per epoch: 50,000 / 32 = 1,563
+- If each batch takes 0.1 seconds: 1,563 × 0.1 × 100 = 4.3 hours
+
+```{admonition} Practical Tip
+:class: tip
+Always run a few training iterations first to estimate the time per batch before committing to a long training run. This helps you plan your experiments and avoid surprises.
+```
+
 # Conclusion
 
 In this chapter, we refreshed the main concepts of deep learning. In particular, we introduced the main components of a deep learning model and the training process. We also introduced the main evaluation metrics for classification and regression problems.
 
-With this in mind, we are ready to deep dive into the architectures and applications of deep learning models for speech and vision.
+**Key Takeaways:**
+
+1. **Deep learning** learns hierarchical representations through multiple layers, making it particularly effective for speech and vision tasks
+2. **Supervised learning** requires labeled data and involves minimizing a loss function through gradient descent
+3. **Backpropagation** efficiently computes gradients using the chain rule, enabling training of deep networks
+4. **Regularization techniques** (dropout, weight decay, batch normalization) help prevent overfitting
+5. **Proper data splitting** (train/validation/test) is crucial for honest model evaluation
+6. **Computational resources** (GPU memory, batch size, training time) must be carefully managed
+
+```{admonition} Common Pitfalls to Avoid
+:class: warning
+- Training on the test set or using it for model selection
+- Forgetting to normalize input data
+- Using the same learning rate throughout training
+- Not monitoring validation performance during training
+- Ignoring computational constraints when designing models
+```
+
+With this foundation in mind, we are ready to deep dive into the architectures and applications of deep learning models for speech and vision.

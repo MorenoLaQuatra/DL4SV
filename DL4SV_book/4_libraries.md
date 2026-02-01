@@ -270,6 +270,280 @@ if __name__ == '__main__':
 
 The setup is more complicated than the `torch.nn.DataParallel` class because you need to initialize the process group and set the device manually. This process is designed for more advanced use-cases. If you are interested in distributed training, you may want to take a look at [PyTorch Lightning](https://www.pytorchlightning.ai/), a library that both simplifies and extends PyTorch's capabilities. PyTorch Lightning is beyond the scope of this book, and you can contact the teacher if you want to learn more about it.
 
+### Debugging Deep Learning Models
+
+Debugging deep learning models is often challenging because failures can manifest in subtle ways. Here is a systematic approach to identify and fix common issues:
+
+#### Common Problems and Solutions
+
+**1. NaN or Inf Losses**
+
+Symptoms: Loss becomes NaN or Inf during training
+
+Possible causes and solutions:
+- **Learning rate too high**: Reduce learning rate by 10x
+- **Gradient explosion**: Add gradient clipping
+  ```python
+  torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+  ```
+- **Numerical instability**: Check for division by zero, log of zero, or overflow
+- **Bad initialization**: Use proper initialization (He, Xavier)
+
+**2. Loss Not Decreasing**
+
+Symptoms: Loss stays constant or decreases very slowly
+
+Possible causes and solutions:
+- **Learning rate too low**: Increase learning rate
+- **Wrong loss function**: Verify you are using the correct loss for your task
+- **Data not normalized**: Normalize inputs to have mean 0 and std 1
+- **Weights not updating**: Check if `requires_grad=True` for model parameters
+- **Dead ReLUs**: Try Leaky ReLU or reduce learning rate
+
+```{code-block} python
+# Check if gradients are flowing
+for name, param in model.named_parameters():
+    if param.grad is not None:
+        print(f"{name}: grad mean = {param.grad.mean():.6f}, grad std = {param.grad.std():.6f}")
+    else:
+        print(f"{name}: NO GRADIENT")
+```
+
+**3. Training Accuracy High but Validation Accuracy Low**
+
+Symptoms: Overfitting
+
+Solutions:
+- Add dropout
+- Increase weight decay
+- Use data augmentation
+- Reduce model capacity
+- Collect more training data
+- Use early stopping
+
+**4. Both Training and Validation Accuracy Low**
+
+Symptoms: Underfitting
+
+Solutions:
+- Increase model capacity (more layers, more units)
+- Train for more epochs
+- Reduce regularization
+- Check for bugs in data preprocessing
+- Try a different architecture
+
+#### Debugging Checklist
+
+Before training:
+- [ ] Verify data loading: Check batch shapes, data types, value ranges
+- [ ] Test forward pass: Run a single batch through the model
+- [ ] Check loss computation: Verify loss is computed correctly
+- [ ] Verify backward pass: Check if gradients are computed
+
+```{code-block} python
+# Debugging snippet
+model = MyModel()
+model.train()
+
+# Get a single batch
+batch = next(iter(train_loader))
+inputs, targets = batch
+
+print(f"Input shape: {inputs.shape}, dtype: {inputs.dtype}")
+print(f"Input range: [{inputs.min():.3f}, {inputs.max():.3f}]")
+print(f"Targets shape: {targets.shape}, dtype: {targets.dtype}")
+
+# Forward pass
+outputs = model(inputs)
+print(f"Output shape: {outputs.shape}")
+
+# Loss computation
+loss = criterion(outputs, targets)
+print(f"Loss: {loss.item():.4f}")
+
+# Backward pass
+loss.backward()
+
+# Check gradients
+for name, param in model.named_parameters():
+    if param.grad is not None:
+        print(f"{name}: grad norm = {param.grad.norm():.4f}")
+```
+
+During training:
+- Monitor training and validation losses
+- Check gradient norms
+- Verify model predictions on a few examples
+- Use TensorBoard or Comet for visualization
+
+```{admonition} Pro Tip
+:class: tip
+Start with a tiny subset of your data (e.g., 10-100 examples). Your model should be able to overfit this tiny dataset completely (achieve near-zero loss). If it cannot, there is a bug in your model, loss function, or training loop.
+```
+
+### Model Checkpointing
+
+Saving model checkpoints during training is essential for:
+- Resuming training after interruption
+- Keeping the best model based on validation performance
+- Analyzing model behavior at different training stages
+
+**Basic checkpointing:**
+
+```{code-block} python
+import torch
+
+# Save checkpoint
+checkpoint = {
+    'epoch': epoch,
+    'model_state_dict': model.state_dict(),
+    'optimizer_state_dict': optimizer.state_dict(),
+    'scheduler_state_dict': scheduler.state_dict(),
+    'train_loss': train_loss,
+    'val_loss': val_loss,
+}
+torch.save(checkpoint, f'checkpoint_epoch_{epoch}.pt')
+
+# Load checkpoint
+checkpoint = torch.load('checkpoint_epoch_10.pt')
+model.load_state_dict(checkpoint['model_state_dict'])
+optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+start_epoch = checkpoint['epoch'] + 1
+```
+
+**Best model checkpointing:**
+
+```{code-block} python
+best_val_loss = float('inf')
+
+for epoch in range(start_epoch, num_epochs):
+    train_loss = train_one_epoch(model, train_loader, criterion, optimizer)
+    val_loss, val_acc = evaluate(model, val_loader, criterion)
+    
+    # Save best model
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'val_loss': val_loss,
+            'val_acc': val_acc,
+        }, 'best_model.pt')
+        print(f"Saved best model at epoch {epoch}")
+    
+    # Save checkpoint every N epochs
+    if (epoch + 1) % 5 == 0:
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+        }, f'checkpoint_epoch_{epoch}.pt')
+```
+
+**Saving only model weights (for deployment):**
+
+```{code-block} python
+# Save
+torch.save(model.state_dict(), 'model_weights.pt')
+
+# Load
+model = MyModel()  # Initialize architecture
+model.load_state_dict(torch.load('model_weights.pt'))
+model.eval()
+```
+
+### Hyperparameter Tuning
+
+Hyperparameter tuning is the process of finding the best configuration for your model. Common hyperparameters include:
+- Learning rate
+- Batch size
+- Number of layers and units
+- Dropout rate
+- Weight decay
+- Optimizer choice
+
+**Strategies:**
+
+**1. Manual Tuning**
+
+Start with reasonable defaults and adjust based on training behavior:
+```
+Learning rate: Start with 1e-3 or 1e-4
+Batch size: Largest that fits in memory (32, 64, 128)
+Weight decay: 1e-4 or 1e-5
+```
+
+**2. Grid Search**
+
+Test all combinations of predefined values:
+```python
+learning_rates = [1e-4, 1e-3, 1e-2]
+batch_sizes = [32, 64, 128]
+
+for lr in learning_rates:
+    for bs in batch_sizes:
+        train_model(lr=lr, batch_size=bs)
+```
+
+Pros: Systematic, guaranteed to find best combination
+Cons: Exponentially expensive with number of hyperparameters
+
+**3. Random Search**
+
+Sample hyperparameters randomly:
+```python
+import random
+
+for trial in range(num_trials):
+    lr = 10 ** random.uniform(-5, -2)  # Log-uniform between 1e-5 and 1e-2
+    batch_size = random.choice([32, 64, 128])
+    dropout = random.uniform(0.1, 0.5)
+    
+    train_model(lr=lr, batch_size=batch_size, dropout=dropout)
+```
+
+Pros: More efficient than grid search
+Cons: May miss the optimal configuration
+
+**4. Bayesian Optimization**
+
+Use libraries like Optuna or Ray Tune for smarter hyperparameter search:
+```python
+import optuna
+
+def objective(trial):
+    lr = trial.suggest_loguniform('lr', 1e-5, 1e-2)
+    batch_size = trial.suggest_categorical('batch_size', [32, 64, 128])
+    dropout = trial.suggest_uniform('dropout', 0.1, 0.5)
+    
+    val_acc = train_and_evaluate(lr=lr, batch_size=batch_size, dropout=dropout)
+    return val_acc
+
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=50)
+
+print(f"Best hyperparameters: {study.best_params}")
+```
+
+Pros: Most efficient, learns from previous trials
+Cons: More complex to set up
+
+**Best Practices:**
+
+1. **Start with learning rate**: This has the biggest impact
+2. **Use learning rate finder**: Gradually increase LR and plot loss to find good range
+3. **Tune one hyperparameter at a time** (when doing manual tuning)
+4. **Use validation set**, never the test set
+5. **Keep track of all experiments**: Use Comet, Weights & Biases, or MLflow
+
+```{admonition} Common Pitfall
+:class: warning
+Do not tune hyperparameters based on test set performance. This leads to overfitting to the test set and overestimating model performance.
+```
+
 ## HuggingFace Transformers
 
 [HuggingFace Transformers](https://huggingface.co/transformers/) is a Python library that provides state-of-the-art models for a variety of domains, including NLP, Computer Vision and Speech Processing. As can be inferred from the name, the library mostly include transformer-based models.

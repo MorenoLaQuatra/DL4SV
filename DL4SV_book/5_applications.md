@@ -148,6 +148,176 @@ print(f"Test loss: {test_loss:.3f} - Test acc: {test_acc:.3f}")
 
 This code uses a standard CNN architecture for image classification. The model is trained on the CIFAR10 dataset, which contains **10 classes** of images: airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck. The model achieves an accuracy of ~58% on the test set.
 
+## Object Detection
+
+Object detection goes beyond classification by not only identifying what objects are in an image, but also **where** they are located. The output is a set of bounding boxes with associated class labels and confidence scores.
+
+**Key concepts:**
+
+1. **Bounding boxes**: Rectangles defined by (x, y, width, height) or (x1, y1, x2, y2)
+2. **Confidence scores**: Probability that an object is present in the box
+3. **Non-Maximum Suppression (NMS)**: Post-processing to remove duplicate detections
+4. **Intersection over Union (IoU)**: Metric to measure overlap between predicted and ground truth boxes
+
+**Popular architectures:**
+
+- **YOLO (You Only Look Once)**: Single-stage detector, very fast, real-time capable
+- **Faster R-CNN**: Two-stage detector, slower but more accurate
+- **DETR (Detection Transformer)**: Transformer-based, treats detection as a set prediction problem
+
+**Using a pre-trained object detection model:**
+
+```{code-block} python
+import torch
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.transforms import ToTensor
+from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+# Load pre-trained model
+model = fasterrcnn_resnet50_fpn(pretrained=True)
+model.eval()
+
+# Load and prepare image
+image = Image.open('street.jpg').convert('RGB')
+image_tensor = ToTensor()(image).unsqueeze(0)
+
+# Make prediction
+with torch.no_grad():
+    predictions = model(image_tensor)
+
+# predictions is a list of dictionaries with keys:
+# 'boxes': bounding box coordinates [x1, y1, x2, y2]
+# 'labels': class labels
+# 'scores': confidence scores
+
+# Visualize detections with confidence > 0.5
+fig, ax = plt.subplots(1, figsize=(12, 9))
+ax.imshow(image)
+
+for box, label, score in zip(predictions[0]['boxes'], 
+                              predictions[0]['labels'], 
+                              predictions[0]['scores']):
+    if score > 0.5:
+        x1, y1, x2, y2 = box.cpu().numpy()
+        rect = patches.Rectangle((x1, y1), x2-x1, y2-y1, 
+                                linewidth=2, edgecolor='r', facecolor='none')
+        ax.add_patch(rect)
+        ax.text(x1, y1-5, f'{COCO_CLASSES[label]}: {score:.2f}', 
+                bbox=dict(facecolor='yellow', alpha=0.5))
+
+plt.axis('off')
+plt.show()
+```
+
+## Semantic Segmentation
+
+Semantic segmentation assigns a class label to **every pixel** in an image. Unlike object detection which uses bounding boxes, segmentation provides pixel-level precision.
+
+**Applications:**
+- Medical imaging (tumor segmentation, organ segmentation)
+- Autonomous driving (road, pedestrian, vehicle segmentation)
+- Satellite imagery analysis
+- Background removal
+
+**Popular architectures:**
+
+- **U-Net**: Encoder-decoder with skip connections, widely used in medical imaging
+- **Mask R-CNN**: Extension of Faster R-CNN that adds a segmentation branch
+- **DeepLab**: Uses atrous convolution for multi-scale feature extraction
+- **Segment Anything Model (SAM)**: Foundation model for segmentation
+
+**U-Net architecture overview:**
+
+```
+         Input Image (H x W x 3)
+              |
+         Encoder Path (Contracting)
+         [Conv + Pool] x N
+              |
+         Bottleneck
+              |
+         Decoder Path (Expanding)
+         [UpConv + Concat + Conv] x N
+              |
+         Output Segmentation Map (H x W x Classes)
+```
+
+The key innovation is the **skip connections** that concatenate encoder features with decoder features, preserving spatial information lost during downsampling.
+
+```{code-block} python
+import torch
+import torch.nn as nn
+
+class UNet(nn.Module):
+    def __init__(self, in_channels=3, num_classes=1):
+        super().__init__()
+        
+        # Encoder (Contracting Path)
+        self.enc1 = self.conv_block(in_channels, 64)
+        self.enc2 = self.conv_block(64, 128)
+        self.enc3 = self.conv_block(128, 256)
+        self.enc4 = self.conv_block(256, 512)
+        
+        # Bottleneck
+        self.bottleneck = self.conv_block(512, 1024)
+        
+        # Decoder (Expanding Path)
+        self.upconv4 = nn.ConvTranspose2d(1024, 512, 2, stride=2)
+        self.dec4 = self.conv_block(1024, 512)
+        self.upconv3 = nn.ConvTranspose2d(512, 256, 2, stride=2)
+        self.dec3 = self.conv_block(512, 256)
+        self.upconv2 = nn.ConvTranspose2d(256, 128, 2, stride=2)
+        self.dec2 = self.conv_block(256, 128)
+        self.upconv1 = nn.ConvTranspose2d(128, 64, 2, stride=2)
+        self.dec1 = self.conv_block(128, 64)
+        
+        # Output
+        self.out = nn.Conv2d(64, num_classes, 1)
+        
+        self.pool = nn.MaxPool2d(2)
+        
+    def conv_block(self, in_channels, out_channels):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, 3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+    
+    def forward(self, x):
+        # Encoder
+        enc1 = self.enc1(x)
+        enc2 = self.enc2(self.pool(enc1))
+        enc3 = self.enc3(self.pool(enc2))
+        enc4 = self.enc4(self.pool(enc3))
+        
+        # Bottleneck
+        bottleneck = self.bottleneck(self.pool(enc4))
+        
+        # Decoder with skip connections
+        dec4 = self.upconv4(bottleneck)
+        dec4 = torch.cat([dec4, enc4], dim=1)
+        dec4 = self.dec4(dec4)
+        
+        dec3 = self.upconv3(dec4)
+        dec3 = torch.cat([dec3, enc3], dim=1)
+        dec3 = self.dec3(dec3)
+        
+        dec2 = self.upconv2(dec3)
+        dec2 = torch.cat([dec2, enc2], dim=1)
+        dec2 = self.dec2(dec2)
+        
+        dec1 = self.upconv1(dec2)
+        dec1 = torch.cat([dec1, enc1], dim=1)
+        dec1 = self.dec1(dec1)
+        
+        return self.out(dec1)
+```
+
 ```{admonition} Exercise - implement a ViT transformer for image classification - 45 min
 :class: exercise
 Implement a ViT transformer for image classification. You can use the pre-trained ViT model from the [HuggingFace model hub](https://huggingface.co/models?pipeline_tag=image-classification) and fine-tune it on the CIFAR10 dataset.
@@ -438,10 +608,297 @@ print(f"Test loss: {test_loss:.3f} - Test acc: {test_acc:.3f}")
 ```
 ````
 
+# Model Deployment
+
+After training a model, the next step is often to deploy it for inference in production. Deployment requires considerations beyond just model accuracy.
+
+## Inference Optimization
+
+**1. Model Export Formats**
+
+**ONNX (Open Neural Network Exchange)**
+
+ONNX is an open format that allows interoperability between different frameworks:
+
+```{code-block} python
+import torch
+import torch.onnx
+
+# Export PyTorch model to ONNX
+model = MyModel()
+model.eval()
+
+dummy_input = torch.randn(1, 3, 224, 224)
+torch.onnx.export(model, dummy_input, "model.onnx",
+                  input_names=['input'],
+                  output_names=['output'],
+                  dynamic_axes={'input': {0: 'batch_size'},
+                               'output': {0: 'batch_size'}})
+
+# Load and run ONNX model
+import onnxruntime as ort
+
+ort_session = ort.InferenceSession("model.onnx")
+inputs = {ort_session.get_inputs()[0].name: input_array}
+outputs = ort_session.run(None, inputs)
+```
+
+**TorchScript**
+
+TorchScript creates optimized models that can run without Python:
+
+```{code-block} python
+import torch
+
+model = MyModel()
+model.eval()
+
+# Method 1: Tracing (records operations during forward pass)
+example_input = torch.randn(1, 3, 224, 224)
+traced_model = torch.jit.trace(model, example_input)
+traced_model.save("model_traced.pt")
+
+# Method 2: Scripting (analyzes code structure)
+scripted_model = torch.jit.script(model)
+scripted_model.save("model_scripted.pt")
+
+# Load and use
+loaded_model = torch.jit.load("model_traced.pt")
+output = loaded_model(input_tensor)
+```
+
+**2. Quantization**
+
+Reduce model size and increase inference speed by using lower precision (e.g., INT8 instead of FP32):
+
+```{code-block} python
+import torch
+
+# Dynamic Quantization (easiest)
+quantized_model = torch.quantization.quantize_dynamic(
+    model, {torch.nn.Linear}, dtype=torch.qint8
+)
+
+# Static Quantization (requires calibration data)
+model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+torch.quantization.prepare(model, inplace=True)
+# Run calibration data through model
+torch.quantization.convert(model, inplace=True)
+```
+
+**Benefits:** 2-4x smaller model size, 2-4x faster inference, minimal accuracy loss
+
+**3. Model Pruning**
+
+Remove unnecessary weights to reduce model size:
+
+```{code-block} python
+import torch.nn.utils.prune as prune
+
+# Prune 30% of weights in a specific layer
+prune.l1_unstructured(model.conv1, name='weight', amount=0.3)
+
+# Make pruning permanent
+prune.remove(model.conv1, 'weight')
+```
+
+## Deployment Strategies
+
+**1. REST API (Flask/FastAPI)**
+
+Simple web service for model inference:
+
+```{code-block} python
+from fastapi import FastAPI, File, UploadFile
+import torch
+from PIL import Image
+import io
+
+app = FastAPI()
+model = torch.load('model.pt')
+model.eval()
+
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    contents = await file.read()
+    image = Image.open(io.BytesIO(contents))
+    
+    # Preprocess
+    tensor = transform(image).unsqueeze(0)
+    
+    # Predict
+    with torch.no_grad():
+        output = model(tensor)
+        prediction = output.argmax(dim=1).item()
+    
+    return {"prediction": prediction}
+```
+
+**2. Batch Processing**
+
+Process large datasets offline:
+
+```{code-block} python
+def batch_inference(model, dataloader, device):
+    model.eval()
+    predictions = []
+    
+    with torch.no_grad():
+        for batch in dataloader:
+            inputs = batch['input'].to(device)
+            outputs = model(inputs)
+            predictions.extend(outputs.cpu().numpy())
+    
+    return predictions
+```
+
+**3. Edge Deployment**
+
+For mobile or embedded devices:
+- Use quantized models
+- Consider TensorFlow Lite or PyTorch Mobile
+- Optimize for specific hardware (NPUs, DSPs)
+
+## Performance Considerations
+
+**Latency vs Throughput:**
+- **Latency**: Time to process a single request (important for real-time applications)
+- **Throughput**: Number of requests processed per second (important for batch processing)
+
+**Tips for reducing latency:**
+- Use smaller models or knowledge distillation
+- Apply quantization
+- Use GPUs for acceleration
+- Batch multiple requests when possible
+
+**Tips for increasing throughput:**
+- Increase batch size (up to memory limits)
+- Use multiple GPUs
+- Pipeline processing stages
+
+# Ethical Considerations and Responsible AI
+
+As deep learning models become more powerful and widely deployed, it is crucial to consider their ethical implications.
+
+## Bias and Fairness
+
+**Problem:** Models can perpetuate or amplify biases present in training data.
+
+**Examples:**
+- Facial recognition systems with lower accuracy for certain demographics
+- Speech recognition systems performing worse for non-native speakers
+- Hiring algorithms discriminating based on gender or ethnicity
+
+**Mitigation strategies:**
+- Ensure diverse and representative training data
+- Evaluate model performance across different demographic groups
+- Use fairness-aware training objectives
+- Regular audits of deployed models
+- Involve diverse stakeholders in model development
+
+## Privacy
+
+**Concerns:**
+- Models may memorize and leak sensitive training data
+- Facial recognition raises surveillance concerns
+- Audio models may capture private conversations
+
+**Best practices:**
+- Use differential privacy during training
+- Minimize data collection and retention
+- Anonymize personal information
+- Provide opt-out mechanisms
+- Comply with regulations (GDPR, CCPA)
+
+## Transparency and Explainability
+
+**Why it matters:**
+- Users have a right to understand decisions affecting them
+- Debugging and improving models requires understanding their behavior
+- Building trust in AI systems
+
+**Approaches:**
+- Provide confidence scores with predictions
+- Use attention visualization for transformers
+- Apply gradient-based attribution methods (e.g., GradCAM for images)
+- Develop model cards documenting model capabilities and limitations
+
+## Environmental Impact
+
+**Concern:** Training large models consumes significant energy.
+
+**Example:** Training GPT-3 emitted approximately 552 tons of CO2.
+
+**Sustainable practices:**
+- Use pre-trained models when possible (transfer learning)
+- Choose energy-efficient hardware
+- Consider model size vs performance trade-offs
+- Use carbon-aware computing (train during low-carbon periods)
+- Report energy consumption in research papers
+
+## Best Practices Summary
+
+1. **Document limitations**: Clearly state what your model can and cannot do
+2. **Test rigorously**: Evaluate across diverse scenarios and edge cases
+3. **Monitor in production**: Track model performance and potential issues
+4. **Plan for failure**: Have fallback mechanisms when models fail
+5. **Involve stakeholders**: Include domain experts and affected communities
+6. **Regular audits**: Continuously assess bias, fairness, and safety
+7. **Responsible disclosure**: Be transparent about model capabilities and risks
+
+```{admonition} Ethical Framework
+:class: important
+Before deploying a model, ask:
+- Who might be harmed by this system?
+- What are the potential negative consequences?
+- How will we monitor and address issues?
+- Do the benefits outweigh the risks?
+- Are we treating all users fairly?
+```
 
 # Conclusion
 
-In this chapter, we have seen how to use CNNs and transformers for image and audio processing. We have seen how to implement a CNN for image classification and how to implement a transformer for keyword spotting. We have also seen how to use pre-trained models for these tasks.
+In this chapter, we have seen how to use CNNs and transformers for image and audio processing. We covered:
+
+**Computer Vision Applications:**
+- Image classification with CNNs and Vision Transformers
+- Object detection for locating objects in images
+- Semantic segmentation for pixel-level classification
+
+**Speech Processing Applications:**
+- Keyword spotting using transformers
+- Processing audio with time-frequency representations
+
+**Practical Deployment:**
+- Model optimization techniques (ONNX, TorchScript, quantization)
+- Deployment strategies (REST APIs, batch processing, edge devices)
+- Performance considerations (latency vs throughput)
+
+**Responsible AI:**
+- Addressing bias and ensuring fairness
+- Protecting privacy in AI systems
+- Building transparent and explainable models
+- Considering environmental impact
+
+**Key Takeaways:**
+
+1. **Choose the right architecture**: CNNs for spatial data, Transformers for sequential data, hybrid approaches when needed
+2. **Transfer learning is powerful**: Start with pre-trained models and fine-tune for your task
+3. **Optimize for deployment**: Consider model size, speed, and accuracy trade-offs
+4. **Think beyond accuracy**: Consider fairness, privacy, interpretability, and environmental impact
+5. **Monitor continuously**: Track model performance and potential issues in production
+
+```{admonition} Next Steps for Your Research
+:class: tip
+When applying deep learning to your research:
+1. Start simple: Begin with baseline models and standard architectures
+2. Leverage pre-trained models: Use transfer learning when possible
+3. Focus on data quality: Good data is more important than complex models
+4. Experiment systematically: Track all experiments and hyperparameters
+5. Validate rigorously: Test on diverse scenarios representative of real-world use
+6. Consider deployment early: Think about how the model will be used
+7. Document thoroughly: Record decisions, limitations, and lessons learned
+```
 
 <!-- 
 ```{admonition} Final project - 1 week
