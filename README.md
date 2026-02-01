@@ -15,10 +15,10 @@ The following table contains general information about the course.
 | | |
 | --- | --- |
 | **Course** | DL4SV: Deep Learning for Speech and Vision |
-| **Academic Year** | 2023/2024 |
+| **Academic Year** | 2026 current (since Feb. 2024) |
 | **Semester** | 1st |
 | **Course duration** | 14 hours |
-| **Period of the course** | Feb. 5th - Feb. 9th, 2024 |
+| **Period of the course** | Feb. 2nd - Feb. 6th, 2026 |
 | **Lecturer** | [Moreno La Quatra](https://mlaquatra.me/) |
 | **Language** | English |
 | | |
